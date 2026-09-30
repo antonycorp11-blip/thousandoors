@@ -23,6 +23,10 @@ npm run build
 
 `npm run docs` atualiza os catálogos de salas, personagens, enigmas, eventos e grafo a partir dos dados do jogo.
 
+## Publicar no Cloudflare Workers
+
+O build gera um site estático em `dist/`. A configuração em `wrangler.jsonc` aponta o Wrangler para esse diretório, sem precisar do plugin de Vite da Cloudflare. No Cloudflare Builds, use `npm run build` como comando de build e `npx wrangler deploy` como comando de deploy. Para publicar localmente com uma sessão autenticada, use `npm run deploy`.
+
 ## Estrutura
 
 - `src/core`: estado, salvamento e coordenação do jogo.
