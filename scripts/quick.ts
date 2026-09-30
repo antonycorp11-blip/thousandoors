@@ -1,0 +1,11 @@
+import { buildHouse } from '../src/world/HouseGenerator';
+const h = buildHouse();
+const doors = Object.values(h.doors).filter(d => !d.meta);
+console.log('rooms', Object.keys(h.rooms).length, 'doors', doors.length, 'locks', Object.keys(h.locks).length, 'genkeys', h.generatedKeys.length, 'reward', h.rewardRooms.length);
+const byType: Record<string, number> = {};
+for (const d of doors) byType[d.type] = (byType[d.type] ?? 0) + 1;
+console.log(byType);
+console.log('door1000', h.doors['d1000']?.origin, h.doors['d1000']?.to, h.doors['d1000']?.lock);
+console.log('r001 doors', h.outDoors['r001'].map(id => [id, h.doors[id].to, h.doors[id].lock]));
+const unresolved = Object.values(h.locks).filter(l => l.door.startsWith('@'));
+console.log('unresolved locks', unresolved.map(l => l.id));

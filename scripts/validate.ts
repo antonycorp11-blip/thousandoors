@@ -1,0 +1,12 @@
+import { buildHouse } from '../src/world/HouseGenerator';
+import { validateHouse } from '../src/world/HouseGraph';
+const h = buildHouse();
+const r = validateHouse(h);
+console.log('TOTAIS', r.totals);
+console.log('Rota principal:', r.finalReachable, 'menor caminho:', r.shortestToFinal, 'rotas mínimas:', r.routesToFinal, 'entradas na antecâmara:', r.entrancesToAntechamber);
+console.log('Sem retorno:', r.noReturn, '| só com chaves/segredos:', r.unreachableWithoutLocks.length);
+console.log('ERROS (' + r.errors.length + ')');
+for (const e of r.errors) console.log('  ✗', e);
+console.log('AVISOS (' + r.warnings.length + ')');
+for (const w of r.warnings) console.log('  !', w);
+process.exit(r.errors.length ? 1 : 0);
