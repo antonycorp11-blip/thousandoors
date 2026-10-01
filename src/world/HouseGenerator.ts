@@ -420,6 +420,18 @@ export function buildHouse(): House {
     if (isBack) slots = [360, 1560, 700, 1220].slice(0, Math.max(needSlots.length, 1));
     slots = slots.filter(s => fixedXs.every(fx => Math.abs(fx - s) > 200));
     if (slots.length < needSlots.length) slots = spreadSlots(needSlots.length, fixedXs, isBack);
+    // portas nunca atrás de móveis grandes com interação (lareira, piano, máquina...)
+    const roomN = parseInt(k, 10);
+    const blockers = interactiveBlockers(rooms[rid(roomN)], isBack ? 'back' : 'front');
+    const blocked = (x: number) => blockers.some(b => Math.abs(b.x - x) < b.half + 120);
+    if (blockers.length && slots.slice(0, needSlots.length).some(blocked)) {
+      const free: number[] = [];
+      for (let x = 330; x <= 1590 && free.length < needSlots.length; x += 10) {
+        if (blocked(x) || fixedXs.concat(free).some(f => Math.abs(f - x) < 300)) continue;
+        free.push(x);
+      }
+      if (free.length >= needSlots.length) slots = free;
+    }
     needSlots.forEach((t, i) => { t.x = slots[i] ?? 300 + i * 360; });
   }
   for (const t of temps) {
@@ -503,6 +515,14 @@ export function flattenEffects(effects: Effect[] = []): Effect[] {
     if (e.type === 'choice') for (const o of e.options) out.push(...flattenEffects(o.effects));
   }
   return out;
+}
+
+/** Móveis de chão com interação, com meia-largura aproximada (para posicionar portas longe deles). */
+function interactiveBlockers(r: RoomDefinition | undefined, side: Side): { x: number; half: number }[] {
+  if (!r) return [];
+  const BIG: Record<string, number> = { fireplace: 210, machine: 350, piano: 190, table_long: 380, puppet_theater: 230, stairs: 260, well: 190, bed: 210, counter: 280, chairs_row: 260, chairs_row_filled: 260, chairs_many: 600, bench: 150, altar: 180, boiler: 230, workbench: 180, drafting_table: 150, throne_chair: 110 };
+  return r[side].props.filter(p => p.d !== undefined && p.z !== -1 && p.z !== 1 && (p.interact?.length || BIG[p.kind]))
+    .map(p => ({ x: p.x, half: (BIG[p.kind] ?? 90) * (1 + 0.5 * (p.d ?? 0)) }));
 }
 
 function tidNum(t: TempDoor) { return parseInt(t.tid.slice(1), 10); }

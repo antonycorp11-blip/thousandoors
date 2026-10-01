@@ -27,8 +27,14 @@ export interface SceneInputHandler {
 const LONG_PRESS = 450;
 const LIGHT_Y: Record<string, number> = { bulb: 225, lamp_shade: 200, chandelier: 190, glass_roof: 60, water_ceiling: 80 };
 const LIGHT_DY: Record<string, number> = { sconce: -80, sconce_candle: -70, lamp_table: -78, lamp_oil: -48, candle: -34, candle_floor: -170, candelabra: -90, candles_five: -40, fireplace: -150, window: -120, lamp_floor: -260, cake: -120, cake_small: -80, reliquary: -150, boiler: -150, wall_crack: -300, number_panel: -55 };
+/** Altura na tela (px, antes da profundidade). Porta = 372 px ≈ 2 m. */
+const NPC_PHOTO_HEIGHT: Record<string, number> = { sentado: 285, helena: 330, menina: 190 };
+/** Figuras pintadas têm 520 px de altura em pé; reduzidas para ~1,70 m. */
+const FIGURE_SCALE = 0.62;
+const PHOTO_FIGURES: Record<string, string> = { sentado: '/assets/characters/joaquim.png', helena: '/assets/characters/helena.png', menina: '/assets/characters/menina.png' };
 
 interface DoorDisplay { v: DoorView; root: Phaser.GameObjects.Container; slab?: Phaser.GameObjects.Image; knob?: Phaser.GameObjects.Image; frame: Phaser.GameObjects.Image; scale: number; x: number; y: number }
+type PressTarget = { prop?: PropView; door?: DoorView; npc?: string; doorHandle?: boolean };
 
 export class RoomScene extends Phaser.Scene implements ScenePort {
   g!: GameManager;
@@ -46,6 +52,7 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
   private dust?: Phaser.GameObjects.Particles.ParticleEmitter;
   private rain?: Phaser.GameObjects.Particles.ParticleEmitter;
   private press: { target: any; t: number; x: number; y: number; timer: any; fired: boolean } | null = null;
+  private targets = new WeakMap<Phaser.GameObjects.GameObject, PressTarget>();
   private flickerUntil = 0;
   private showHotspots = false;
   private breathing = false;
@@ -54,6 +61,10 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
 
   onReady?: () => void;
   constructor() { super('room'); }
+
+  preload() {
+    for (const [npc, path] of Object.entries(PHOTO_FIGURES)) this.load.image(`character:${npc}`, path);
+  }
 
   create() {
     this.cameras.main.setBackgroundColor('#0a0a0b');
@@ -67,7 +78,28 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
     this.black = this.add.rectangle(W / 2, H / 2, 4000, 3000, 0x000000).setDepth(3000).setScrollFactor(0).setAlpha(1);
     this.scale.on('resize', () => this.layout());
     this.layout();
-    this.input.on('pointerup', (p: Phaser.Input.Pointer, over: any[]) => { if (!over.length && !this.press) this.input$?.backgroundTap(); void p; });
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.g.busy) return;
+      const target = this.targetAt(p);
+      if (!target) return;
+      this.g.audio.unlock();
+      if (p.rightButtonDown()) { this.fire(target, true, p); return; }
+      this.cancelPress();
+      const press = { target, t: p.downTime, x: p.x, y: p.y, fired: false, timer: 0 as any };
+      press.timer = setTimeout(() => { press.fired = true; this.fire(target, true, p); bus.emit('ui:pressring', null); }, LONG_PRESS);
+      this.press = press;
+      bus.emit('ui:pressring', { x: p.event && 'clientX' in p.event ? (p.event as MouseEvent).clientX : 0, y: p.event && 'clientY' in p.event ? (p.event as MouseEvent).clientY : 0 });
+    });
+    this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
+      const pr = this.press;
+      const target = this.targetAt(p);
+      this.cancelPress();
+      if (pr && !pr.fired && target === pr.target && Math.hypot(p.x - pr.x, p.y - pr.y) < 30) this.fire(pr.target, false, p);
+      else if (!pr && !target && p.button !== 2) this.input$?.backgroundTap();
+    });
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (this.press && Math.hypot(p.x - this.press.x, p.y - this.press.y) >= 30) this.cancelPress();
+    });
     this.input.mouse?.disableContextMenu();
     bus.on('debug:hotspots', (on: boolean) => { this.showHotspots = on; this.refresh(true); });
     this.onReady?.();
@@ -123,6 +155,8 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
 
   // ───────────────────────────── building a view ─────────────────────────────
   private build(view: RoomView) {
+    this.cancelPress();
+    this.targets = new WeakMap();
     this.layer.removeAll(true);
     this.overlay.removeAll(true);
     this.lightFx = [];
@@ -143,6 +177,9 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
     while (this.shellKeys.length > 14) { const old = this.shellKeys.shift()!; if (this.textures.exists(old)) this.textures.remove(old); }
     const shell = this.add.image(SHELL_X0, SHELL_Y0, shellKey).setOrigin(0, 0).setScale(1 / SHELL_SCALE);
     this.layer.add(shell);
+
+    // nada fica na frente das portas: afasta móveis, objetos e personagens
+    this.clearDoorways(view, geom);
 
     // props (wall first, then floor by depth), NPCs, doors
     const items: { depth: number; add: () => void }[] = [];
@@ -246,6 +283,68 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
     if (img.input) img.input.cursor = 'pointer';
   }
 
+  /**
+   * Regra de composição: nenhuma porta pode ficar escondida atrás de um objeto ou personagem.
+   * Calcula a faixa ocupada por cada porta visível e empurra para o lado o que invadir essa faixa
+   * (objetos sobre mesas acompanham o móvel). Vale para salas autorais e geradas.
+   */
+  private clearDoorways(view: RoomView, geom: ReturnType<typeof shellGeom>) {
+    const wallScale = (geom.floor - geom.top) / 710;
+    const zones = view.doors.map(v => {
+      const sc = v.wall === 'back' ? wallScale * (v.door.visual.scale ?? 1) : 1;
+      const half = v.wall === 'back' ? (DOOR_W / 2 + FRAME + 24) * sc : 120;
+      const top = v.wall === 'back' ? geom.floor + (v.door.visual.yOffset ?? 0) - DOOR_H * sc : geom.top;
+      return { lo: v.x - half, hi: v.x + half, top };
+    });
+    if (!zones.length) return;
+    const minX = 150, maxX = 1770;
+    const place = (x: number, half: number): number => {
+      const hits = (cx: number) => zones.some(z => cx + half > z.lo && cx - half < z.hi);
+      if (!hits(x)) return x;
+      const cands: number[] = [];
+      for (const z of zones) cands.push(z.lo - half - 6, z.hi + half + 6);
+      const ok = cands.filter(c => c - half >= minX && c + half <= maxX && !hits(c)).sort((a, b) => Math.abs(a - x) - Math.abs(b - x));
+      return ok.length ? ok[0] : NaN;
+    };
+    const drop = new Set<PropView>();
+    const DECALS = new Set(['rug', 'runner_rug', 'rug_round', 'blood', 'floor_circle', 'papers', 'debris', 'water_ceiling', 'glass_roof']);
+    const CEIL = new Set(['bulb', 'lamp_shade', 'chandelier', 'glass_roof', 'water_ceiling', 'mobile_toy']);
+    const moved = new Set<PropView>();
+    const props = view.props;
+    for (const p of props) {
+      if (moved.has(p) || p.invisible || p.hotspot || p.z === -1 || p.z === 1 || DECALS.has(p.kind) || CEIL.has(p.kind)) continue;
+      if (['door_outline', 'symbol', 'inscription', 'seam', 'anchor_nail', 'plate_number'].includes(p.kind)) continue;
+      const art = paintProp(p.kind, p.variant ?? '', '');
+      const floor = p.d !== undefined;
+      const sc = (p.scale ?? 1) * (floor ? depthScale(p.d ?? 0) : wallScale);
+      const half = (art.canvas.width * sc) / 2;
+      if (!floor) {
+        // objeto de parede: só conta se cruza a altura da porta
+        const bottom = p.y ?? 0;
+        const topY = bottom - art.canvas.height * sc;
+        if (!zones.some(z => bottom > z.top && topY < geom.floor)) continue;
+      }
+      const nx = place(p.x, half);
+      if (isNaN(nx)) {
+        // sem espaço: decoração sai de cena; objetos com interação ficam (corrigidos nos dados)
+        if (!p.interact?.length) { drop.add(p); for (const q of props) if (q.z === 1 && q.d === p.d && Math.abs(q.x - p.x) <= half + 10 && !q.interact?.length) drop.add(q); }
+        continue;
+      }
+      if (nx === p.x) continue;
+      const dx = nx - p.x;
+      // o que está em cima do móvel vai junto
+      for (const q of props) if (q !== p && q.z === 1 && q.d === p.d && Math.abs(q.x - p.x) <= half + 10) { q.x += dx; moved.add(q); }
+      p.x = nx;
+      moved.add(p);
+    }
+    if (drop.size) view.props = props.filter(p => !drop.has(p));
+    for (const n of view.npcs) {
+      const half = n.npc === 'menina' ? 110 : 95;
+      const nx = place(n.x, half);
+      if (!isNaN(nx)) n.x = nx;
+    }
+  }
+
   private addProp(p: PropView, isCeil: boolean) {
     const art = paintProp(p.kind, p.variant ?? '', '');
     const key = this.tex(`prop:${p.kind}:${p.variant ?? ''}`, () => art.canvas);
@@ -291,12 +390,23 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
     if (!c) return;
     const st = this.g.npcs.state(npc);
     const stage = c.youngs ? Math.max(0, 2 - st.timelineState) : st.timelineState;
-    const art = paintFigure(c.figure, c.ages || c.youngs ? stage : 0, npc);
-    const key = this.tex(`fig:${npc}:${stage}`, () => art.canvas);
     const s = depthScale(d) * 0.92;
-    const img = this.add.image(x, floorY(d), key).setOrigin(art.ax, art.ay).setScale(s);
+    const photoKey = `character:${npc}`;
+    let img: Phaser.GameObjects.Image;
+    if (stage === 0 && this.textures.exists(photoKey)) {
+      img = this.add.image(x, floorY(d), photoKey).setOrigin(0.5, 0.98);
+      const src = this.textures.get(photoKey).getSourceImage() as HTMLImageElement;
+      const hgt = NPC_PHOTO_HEIGHT[npc] ?? 320;
+      img.setDisplaySize(hgt * (src.width / src.height) * s, hgt * s);
+      if (npc === 'helena' && this.g.meta.lore.includes('helena_3')) img.setTint(0xc7d2d7).setAlpha(0.88);
+      if (npc === 'menina' && this.g.meta.lore.includes('desenho_voce')) img.setTint(0xd4c8bd);
+    } else {
+      const art = paintFigure(c.figure, c.ages || c.youngs ? stage : 0, npc);
+      const key = this.tex(`fig:${npc}:${stage}`, () => art.canvas);
+      img = this.add.image(x, floorY(d), key).setOrigin(art.ax, art.ay).setScale(s * FIGURE_SCALE);
+    }
     this.layer.add(img);
-    if (!this.g.settings.reduceMotion) this.tweens.add({ targets: img, scaleY: s * 1.008, duration: 2200 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    if (!this.g.settings.reduceMotion) this.tweens.add({ targets: img, scaleY: img.scaleY * 1.008, duration: 2200 + Math.random() * 800, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     this.hitArea(img, 140, 300);
     this.bindPress(img, { npc });
     if (this.showHotspots) this.debugRect(img.getBounds(), 0x66aaff, npc);
@@ -365,25 +475,20 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
   }
 
   // ───────────────────────────── input ─────────────────────────────
-  private bindPress(obj: Phaser.GameObjects.GameObject, target: { prop?: PropView; door?: DoorView; npc?: string }) {
-    obj.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (this.g.busy) return;
-      this.g.audio.unlock();
-      if (p.rightButtonDown()) { this.fire(target, true, p); return; }
-      const press = { target, t: p.downTime, x: p.x, y: p.y, fired: false, timer: 0 as any };
-      press.timer = setTimeout(() => { press.fired = true; this.fire(target, true, p); bus.emit('ui:pressring', null); }, LONG_PRESS);
-      this.press = press;
-      bus.emit('ui:pressring', { x: p.event && 'clientX' in p.event ? (p.event as any).clientX : 0, y: p.event && 'clientY' in p.event ? (p.event as any).clientY : 0 });
-    });
-    obj.on('pointerup', (p: Phaser.Input.Pointer) => {
-      const pr = this.press;
-      if (!pr || pr.target !== target) return;
-      clearTimeout(pr.timer);
-      bus.emit('ui:pressring', null);
-      this.press = null;
-      if (!pr.fired && Math.hypot(p.x - pr.x, p.y - pr.y) < 30) this.fire(target, false, p);
-    });
-    obj.on('pointerout', () => { if (this.press?.target === target) { clearTimeout(this.press.timer); this.press = null; bus.emit('ui:pressring', null); } });
+  private bindPress(obj: Phaser.GameObjects.GameObject, target: PressTarget) {
+    this.targets.set(obj, target);
+  }
+
+  private targetAt(p: Phaser.Input.Pointer): PressTarget | null {
+    const hits = this.input.hitTestPointer(p).map(obj => this.targets.get(obj)).filter((t): t is PressTarget => !!t);
+    // A visible object always wins over the large rectangular hit area of a door.
+    return hits.find(t => !!t.doorHandle) ?? hits.find(t => !!t.prop?.interact?.length || !!t.npc) ?? hits.find(t => !!t.prop) ?? hits[0] ?? null;
+  }
+
+  private cancelPress() {
+    if (this.press) clearTimeout(this.press.timer);
+    this.press = null;
+    bus.emit('ui:pressring', null);
   }
 
   private fire(t: { prop?: PropView; door?: DoorView; npc?: string }, examine: boolean, p: Phaser.Input.Pointer) {
@@ -473,7 +578,7 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
         const art = paintProp(kind);
         const key = this.tex(`prop:${kind}:`, () => art.canvas);
         const x = data.x ?? [620, 1300, 1560][Math.floor(Math.random() * 3)];
-        const img = this.add.image(x, floorY(0.15), key).setOrigin(0.5, 1).setAlpha(0).setScale(depthScale(0.15));
+        const img = this.add.image(x, floorY(0.15), key).setOrigin(0.5, 1).setAlpha(0).setScale(depthScale(0.15) * 0.68);
         this.layer.add(img);
         this.tweens.add({ targets: img, alpha: 0.95, duration: 300, hold: data.ms ?? 2500, yoyo: true, onComplete: () => img.destroy() });
         break;

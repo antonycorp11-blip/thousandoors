@@ -83,6 +83,13 @@ export class MemorySystem {
     }).filter((t: any) => t.evidence.length >= t.min);
   }
 
+  theoryBoard(): { id: string; title: string; evidence: string[]; total: number; formed: boolean }[] {
+    return THEORIES.map(t => {
+      const evidence = t.evidence.filter(e => evalCond(e.cond, this.g)).map(e => e.text);
+      return { id: t.id, title: t.title, evidence, total: t.evidence.length, formed: evidence.length >= t.minEvidence };
+    }).filter(t => t.evidence.length > 0).sort((a, b) => Number(b.formed) - Number(a.formed) || b.evidence.length - a.evidence.length);
+  }
+
   checkTheories(): void {
     const m = this.g.meta;
     const ts = this.theories();

@@ -13,6 +13,8 @@ export class AudioManager {
   private ambTimers: number[] = [];
   private ambId: string | null = null;
   private musicTimer = 0;
+  private mood: 'quiet' | 'mystery' | 'memory' | 'danger' = 'quiet';
+  private lastCue = 0;
   enabled = typeof window !== 'undefined' && typeof (window as any).AudioContext !== 'undefined';
 
   constructor(private settings: () => Settings) {}
@@ -229,26 +231,34 @@ export class AudioManager {
     }
   }
 
-  /** Minimal music: a rare, sparse piano phrase over a drone. Silence most of the time. */
+  musicMood(mood: string): void {
+    const next = mood === 'memory' || mood === 'danger' || mood === 'mystery' ? mood : 'quiet';
+    if (this.mood === next) return;
+    this.mood = next;
+    if (this.ctx && next !== 'quiet' && (!this.lastCue || this.ctx.currentTime - this.lastCue > 12)) this.phrase(next);
+    if (this.ctx) this.scheduleMusic();
+  }
+
+  private phrase(mood: 'quiet' | 'mystery' | 'memory' | 'danger'): void {
+    if (!this.ctx || this.settings().music <= 0) return;
+    const c = this.ctx;
+    this.lastCue = c.currentTime;
+    const notes = mood === 'memory' ? [261.6, 329.6, 392, 329.6, 293.7]
+      : mood === 'danger' ? [110, 116.5, 155.6, 116.5]
+      : mood === 'mystery' ? [220, 293.7, 261.6, 329.6] : [220, 261.6, 293.7];
+    const d = c.createGain(); d.gain.value = mood === 'danger' ? 0.55 : 0.8; d.connect(this.music);
+    const send = c.createGain(); send.gain.value = 0.65; d.connect(send); send.connect(this.reverbSend);
+    notes.forEach((f, i) => this.piano(f, i * (mood === 'danger' ? 1.35 : 0.82), mood === 'danger' ? 0.1 : 0.13, d));
+  }
+
+  /** A motif returns in story rooms; ordinary rooms keep longer silences. */
   private scheduleMusic(): void {
-    const minor = [220, 246.9, 261.6, 293.7, 329.6, 349.2, 392];
-    const next = () => {
-      this.musicTimer = window.setTimeout(() => {
-        if (this.ctx && this.settings().music > 0 && Math.random() < 0.55) {
-          const d = this.ctx.createGain(); d.gain.value = 1; d.connect(this.music);
-          const send = this.ctx.createGain(); send.gain.value = 0.8; d.connect(send); send.connect(this.reverbSend);
-          const phrase = 3 + Math.floor(Math.random() * 4);
-          let when = 0;
-          for (let i = 0; i < phrase; i++) {
-            const f = minor[Math.floor(Math.random() * minor.length)] * (Math.random() < 0.3 ? 0.5 : 1);
-            this.piano(f, when, 0.12, d);
-            when += 0.9 + Math.random() * 1.4;
-          }
-        }
-        next();
-      }, 55000 + Math.random() * 70000);
-    };
-    next();
+    clearTimeout(this.musicTimer);
+    const delay = this.mood === 'quiet' ? 60000 + Math.random() * 60000 : 19000 + Math.random() * 11000;
+    this.musicTimer = window.setTimeout(() => {
+      if (this.mood !== 'quiet' || Math.random() < 0.35) this.phrase(this.mood);
+      this.scheduleMusic();
+    }, delay);
   }
 
   note(freq: number) { this.piano(freq, 0, 0.2); }

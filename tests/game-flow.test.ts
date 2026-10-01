@@ -19,6 +19,8 @@ describe('exploration flow', () => {
     expect(g.map.graph().edges.some(e => e.door === door!.door.id && e.to === destination)).toBe(true);
     expect(g.run?.trail?.at(-1)).toEqual({ from: 'r001', to: destination, door: door!.door.id, reverse: false });
     expect(g.map.routeTo('r001')).toEqual([{ from: destination, to: 'r001', door: door!.door.id, uncertain: false }]);
+    expect(g.map.routeInstruction(g.map.routeTo('r001')![0])).toContain(`porta ${door!.door.displayNumber}`);
+    expect(g.map.roomInfo(destination!).doors.some(d => d.text.includes('(atrás, retorno)'))).toBe(true);
 
     const returnDoor = g.rooms.view(destination!, 'back').doors.find(v => v.reverse && v.door.id === door!.door.id);
     expect(returnDoor).toBeDefined();
@@ -27,6 +29,17 @@ describe('exploration flow', () => {
     expect(g.meta.doors[door!.door.id].lastDest).toBe(destination);
     expect(g.map.graph().edges.some(e => e.door === door!.door.id && e.from === e.to)).toBe(false);
     expect(g.run?.trail?.at(-1)?.reverse).toBe(true);
+  });
+
+  it('shows a theory as a developing suspicion before it is fully formed', async () => {
+    const g = new GameManager({ headless: true });
+    await g.startRun();
+    g.memory.addLore('diario_t1');
+    const suspicion = g.memory.theoryBoard().find(t => t.id === 't_construi');
+    expect(suspicion?.evidence).toHaveLength(1);
+    expect(suspicion?.formed).toBe(false);
+    g.memory.addLore('planta_original');
+    expect(g.memory.theoryBoard().find(t => t.id === 't_construi')?.formed).toBe(true);
   });
 
   it('restores the active side and visit events after a reload', async () => {

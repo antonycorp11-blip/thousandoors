@@ -199,7 +199,9 @@ export class UIController implements UIPort, SceneInputHandler {
       this.modal++;
       this.g.audio.play('page');
       const kinds: Record<string, string> = { carta: 'Carta', foto: 'Fotografia', gravacao: 'Gravação', documento: 'Documento', nota: 'Bilhete', livro: 'Livro', desenho: 'Desenho', inscricao: 'Inscrição', memoria: 'Memória' };
-      const paper = h('div', { class: `paper ${l.kind === 'foto' ? 'foto' : ''}` }, h('div', { class: 'kind' }, kinds[l.kind] ?? ''), h('h3', {}, l.title), h('div', {}, l.text));
+      const paper = h('div', { class: `paper ${l.kind === 'foto' ? 'foto' : ''}` }, h('div', { class: 'kind' }, kinds[l.kind] ?? ''), h('h3', {}, l.title),
+        l.image ? h('img', { class: `evidence-photo${l.id === 'medalhao' ? ' locket' : ''}`, src: l.image, alt: l.title, loading: 'eager' }) : null,
+        h('div', { class: 'photo-caption' }, l.text));
       const close = () => { wrap.remove(); this.modal--; res(); };
       if (l.back) {
         const btn = h('button', { class: 'turnover', onclick: (e: Event) => { e.stopPropagation(); btn.replaceWith(h('div', { class: 'back' }, l.back!)); this.g.audio.play(l.id === 'foto_casa' ? 'sting_soft' : 'page'); } }, l.kind === 'foto' ? 'Virar a fotografia' : 'Ver o verso');

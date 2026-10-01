@@ -3,7 +3,7 @@ import type { LoreFragment, RumorDefinition, TheoryDefinition, AchievementDefini
 // Lore is deliberately contradictory. See LORE_BIBLE.md for the hidden truth table.
 export const LORE: LoreFragment[] = [
   // ── MEMÓRIA ──
-  { id: 'foto_casa', title: 'Fotografia Antiga', kind: 'foto', axis: 'memoria', fragments: 3,
+  { id: 'foto_casa', title: 'Fotografia Antiga', kind: 'foto', axis: 'memoria', fragments: 3, image: '/assets/photos/foto-casa.jpg',
     text: 'Sete pessoas em frente a uma casa sem janelas. Roupas de outra época. A terceira da esquerda para a direita é você — mais novo, sorrindo, com a mão no ombro de uma mulher.',
     back: 'Se você encontrou isto novamente, eu falhei.' },
   { id: 'diario_t1', title: 'Diário — página sem data', kind: 'nota', axis: 'memoria', fragments: 2,
@@ -22,10 +22,10 @@ export const LORE: LoreFragment[] = [
     text: 'Ela não está aqui. O que você encontra nas salas é o que você lembra dela, e você lembra errado. Pare de dar a ela o seu rosto de saudade. Ela odiava quando você ficava triste.' },
   { id: 'helena_3', title: 'Carta sem assinatura', kind: 'carta', axis: 'memoria', fragments: 3,
     text: 'Eu fiquei. Não porque a Casa pediu. Porque alguém tinha que estar aqui quando você esquecesse. Se você me encontrar e não souber meu nome, tudo bem. Eu sei o seu.' },
-  { id: 'medalhao', title: 'Medalhão', kind: 'foto', axis: 'memoria', fragments: 3,
+  { id: 'medalhao', title: 'Medalhão', kind: 'foto', axis: 'memoria', fragments: 3, image: '/assets/photos/aniversario.jpg',
     text: 'Dentro do medalhão: a fotografia de uma menina de uns quatro anos, rindo, sem dois dentes da frente. O outro lado está vazio, com marcas de cola.',
     back: 'Gravado: "L. — 999 dias".' },
-  { id: 'foto_aniversario', title: 'Foto de Aniversário', kind: 'foto', axis: 'memoria', fragments: 2,
+  { id: 'foto_aniversario', title: 'Foto de Aniversário', kind: 'foto', axis: 'memoria', fragments: 2, image: '/assets/photos/aniversario.jpg',
     text: 'Um bolo com duas velas. Uma criança soprando. Um homem ao fundo desfocado, segurando a câmera errada. As velas, na foto, ainda estão acesas. Você jura que tremem.' },
   { id: 'lenco_lia', title: 'Lenço Bordado', kind: 'memoria', axis: 'memoria', fragments: 1,
     text: 'Um lenço pequeno bordado com linha vermelha: "Lia". O bordado é torto, feito por alguém aprendendo.' },
@@ -110,9 +110,9 @@ export const LORE: LoreFragment[] = [
   { id: 'outro_eu', title: 'O Outro', kind: 'memoria', axis: 'ruptura', fragments: 4,
     text: 'Ele tem o seu casaco. Falta o mesmo botão. Ele diz que já chegou à Porta 1000 e escolheu voltar para te avisar. Ele diz a mesma coisa sobre você.' },
   // ── diversos ──
-  { id: 'foto_44', title: 'Fotografia: Sala 44', kind: 'foto', axis: 'perdidos', fragments: 2,
+  { id: 'foto_44', title: 'Fotografia: Sala 44', kind: 'foto', axis: 'perdidos', fragments: 2, image: '/assets/photos/foto-44.jpg',
     text: 'Um homem de óculos, com uma pasta de arquivos, diante de uma porta com uma placa: 44. É Benedito. Na foto, ele parece assustado com alguém atrás do fotógrafo.' },
-  { id: 'foto_sete', title: 'Foto dos Sete', kind: 'foto', axis: 'casa', fragments: 2,
+  { id: 'foto_sete', title: 'Foto dos Sete', kind: 'foto', axis: 'casa', fragments: 2, image: '/assets/photos/foto-sete.jpg',
     text: 'Sete pessoas com capacetes, pás, uma planta desenrolada. O rosto de uma delas foi raspado com uma moeda. Pela roupa, é você.' },
   { id: 'grav_1', title: 'Gravação: Primeira Sessão', kind: 'gravacao', axis: 'casa', fragments: 2,
     text: '[chiado] ...porta um, madeira escura, estável. Porta dois, madeira clara, estável. Porta três... [pausa] ela não estava aqui ontem. [voz ao fundo: "Teo, anota isso."]' },

@@ -194,6 +194,7 @@ export class GameManager {
     this.roomState.facing = run.roomVisit?.facing ?? run.facing ?? 'front';
     const room = this.house.rooms[run.currentRoom];
     this.audio.ambience(room?.ambience ?? 'room');
+    this.audio.musicMood(room?.music ?? (room?.category === 'memory' ? 'memory' : room?.category === 'danger' ? 'danger' : room?.category === 'character' ? 'mystery' : 'quiet'));
     bus.emit('room:enter', { room: run.currentRoom });
     await this.scene?.showRoom(this.currentView(), true);
     bus.emit('hud');
@@ -205,6 +206,7 @@ export class GameManager {
     this.dead = false;
     this.roomState = freshVisit(ROOM_ZERO);
     this.audio.ambience('zero');
+    this.audio.musicMood('quiet');
     bus.emit('room:enter', { room: ROOM_ZERO });
     await this.scene?.showRoom(this.currentView(), true);
     this.save();
@@ -250,6 +252,7 @@ export class GameManager {
     run.facing = this.roomState.facing;
     run.roomVisit = saveVisit(this.roomState);
     this.audio.ambience(room.ambience ?? 'room');
+    this.audio.musicMood(room.music ?? (room.category === 'memory' ? 'memory' : room.category === 'danger' ? 'danger' : room.category === 'character' ? 'mystery' : 'quiet'));
     this.npcs.onEnterRoom(roomId);
     bus.emit('room:enter', { room: roomId, first });
     const view = this.currentView();
@@ -539,6 +542,7 @@ export class GameManager {
     this.journal.add('eventos', `Exploração ${run.run} terminou na ${this.roomLabel(run.currentRoom)}. Causa: ${cause}.`, 'death_' + run.run);
     this.audio.play('death');
     this.audio.ambience(null);
+    this.audio.musicMood('quiet');
     const phrases = ['Você esqueceu alguma coisa.', 'A Casa guarda o que você deixou cair.', 'De novo.', 'Não foi a primeira vez.', 'Alguém apaga a luz.', 'Você acorda onde sempre acorda.'];
     await this.ui.death(cause, phrases[m.deaths % phrases.length]);
     this.run = null;

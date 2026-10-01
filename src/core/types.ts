@@ -463,6 +463,7 @@ export interface LoreFragment {
   title: string;
   kind: 'carta' | 'foto' | 'gravacao' | 'documento' | 'nota' | 'livro' | 'desenho' | 'inscricao' | 'memoria';
   text: string;
+  image?: string;
   back?: string;
   axis: Axis;
   fragments?: number;

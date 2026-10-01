@@ -73,8 +73,14 @@ export class MentalMapView {
     const run = this.g.run;
     this.trailEl.innerHTML = '';
     if (!run) { this.trailEl.appendChild(h('p', {}, 'Seu caminho aparecerá quando você entrar na Casa.')); return; }
-    this.trailEl.appendChild(h('p', { class: 'map-trail-intro' }, 'Uma corda pela Casa: cada passo desta exploração, na ordem em que você o deu. Toque numa sala para vê-la no mapa de portas.'));
+    this.trailEl.appendChild(h('p', { class: 'map-trail-intro' }, 'A corda mostra cada passo desta exploração. Escolha uma sala para ver a rota de volta, porta por porta.'));
     const path = run.path.length ? run.path : [run.currentRoom];
+    const start = path[0];
+    const homeRoute = this.g.map.routeTo(start);
+    this.trailEl.appendChild(h('div', { class: 'map-return' },
+      h('b', {}, `Voltar para ${this.g.roomLabel(start)}`),
+      homeRoute?.length ? h('div', {}, `Próximo passo: ${this.g.map.routeInstruction(homeRoute[0])}`) : h('div', {}, homeRoute ? 'Você já está na sala inicial.' : 'Nenhum retorno confirmado a partir daqui.'),
+      h('button', { onclick: () => { this.selected = start; this.setMode('known'); } }, 'Ver rota completa →')));
     for (let i = 0; i < path.length; i++) {
       const id = path[i];
       const step = i > 0 ? run.trail?.[i - 1] : null;
@@ -84,9 +90,9 @@ export class MentalMapView {
       this.trailEl.appendChild(h('button', { class: `map-trail-step${i === path.length - 1 ? ' current' : ''}`, onclick: () => {
         this.selected = id; this.setMode('known');
       } }, h('span', { class: 'map-trail-index' }, String(i + 1).padStart(2, '0')),
-      h('span', {}, h('b', {}, `${this.g.roomLabel(id)} · ${room?.title ?? ''}`), h('small', {}, via))));
+      h('span', {}, h('b', {}, `${this.g.roomLabel(id)} · ${room?.title ?? ''}`), h('small', {}, via), id !== run.currentRoom ? h('small', { class: 'map-trail-action' }, 'Ver caminho para esta sala →') : null)));
     }
-    requestAnimationFrame(() => { this.trailEl.scrollTop = this.trailEl.scrollHeight; });
+    requestAnimationFrame(() => { this.trailEl.scrollTop = 0; });
   }
 
   private build() {
@@ -220,8 +226,9 @@ export class MentalMapView {
     this.info.append(...[
       h('h3', {}, info.title), h('div', { class: 'sub' }, info.subtitle),
       h('div', { class: 'meta' }, `Visitas: ${info.visits}`),
-      route?.length ? h('h4', {}, 'Como chegar daqui') : null,
-      route?.length ? h('ol', { class: 'map-directions' }, ...route.map(s => h('li', {}, `${this.g.roomLabel(s.from)}: porta ${this.g.house.doors[s.door]?.displayNumber ?? '?'} → ${this.g.roomLabel(s.to)}${s.uncertain ? ' (pode mudar)' : ''}`))) : null,
+      route?.length ? h('div', { class: 'map-next-step' }, h('small', {}, 'PRÓXIMA PORTA'), h('b', {}, this.g.map.routeInstruction(route[0]))) : null,
+      route?.length ? h('h4', {}, `Rota completa · ${route.length} ${route.length === 1 ? 'porta' : 'portas'}`) : null,
+      route?.length ? h('ol', { class: 'map-directions' }, ...route.map(s => h('li', {}, `${this.g.roomLabel(s.from)}: ${this.g.map.routeInstruction(s)}`))) : null,
       route === null && info.visits ? h('div', { class: 'meta' }, 'Não há um caminho de volta confirmado pelas portas conhecidas.') : null,
       info.doors.length ? h('h4', {}, 'Portas conhecidas') : null, info.doors.length ? h('ul', {}, ...info.doors.map(d => h('li', {}, d.text))) : null,
       info.objects.length ? h('h4', {}, 'Objetos notados') : null, info.objects.length ? h('ul', {}, ...info.objects.map(o => h('li', {}, o))) : null,
@@ -257,12 +264,14 @@ export class MentalMapView {
     c.fillStyle = bg; c.fillRect(0, 0, W, H);
     c.setTransform(this.dpr * this.zoom, 0, 0, this.dpr * this.zoom, this.dpr * this.ox, this.dpr * this.oy);
     // edges (threads)
+    const route = this.selected ? this.g.map.routeTo(this.selected) : null;
     for (const e of this.edges) {
       const a = this.byId.get(e.from), b = this.byId.get(e.to);
       if (!a || !b) continue;
       c.save();
-      c.strokeStyle = e.locked ? (e.highlight ? 'rgba(230,180,105,0.9)' : 'rgba(185,165,138,0.55)') : e.style === 'faint' ? 'rgba(185,165,138,0.18)' : 'rgba(150,40,40,0.75)';
-      c.lineWidth = e.highlight ? 2.4 : 1.6;
+      const onRoute = route?.some(s => s.door === e.door && ((s.from === e.from && s.to === e.to) || (s.from === e.to && s.to === e.from)));
+      c.strokeStyle = onRoute ? '#f3c66f' : e.locked ? (e.highlight ? 'rgba(230,180,105,0.9)' : 'rgba(185,165,138,0.55)') : e.style === 'faint' ? 'rgba(185,165,138,0.18)' : 'rgba(150,40,40,0.75)';
+      c.lineWidth = onRoute ? 4 : e.highlight ? 2.4 : 1.6;
       if (e.style === 'dashed' || e.style === 'faint') c.setLineDash([6, 6]);
       c.beginPath(); c.moveTo(a.x, a.y);
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + 10;

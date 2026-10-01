@@ -25,12 +25,13 @@ export interface MapEdge {
   style: 'solid' | 'dashed' | 'faint';
   oneway: boolean; locked: boolean; highlight: boolean; hidden: boolean;
 }
+export interface RouteStep { from: string; to: string; door: string; uncertain: boolean }
 
 export class MapSystem {
   constructor(private g: GameManager) {}
 
   /** Directions through doors the player has actually used. */
-  routeTo(target: string): { from: string; to: string; door: string; uncertain: boolean }[] | null {
+  routeTo(target: string): RouteStep[] | null {
     const start = this.g.run?.currentRoom;
     if (!start || !this.g.meta.rooms[target]) return null;
     if (start === target) return [];
@@ -49,6 +50,19 @@ export class MapSystem {
       addLink(e.from, e.to, e.door, uncertain);
       if (d.bidirectional) addLink(e.to, e.from, e.door, uncertain);
     }
+    // Current-run passages are more precise than the persistent map, especially when
+    // an unstable door has led somewhere different on an earlier exploration.
+    for (const step of this.g.run?.trail ?? []) {
+      const d = this.g.house.doors[step.door];
+      if (!d || !this.g.meta.rooms[step.from] || !this.g.meta.rooms[step.to] || this.g.doors.isLocked(d.id)) continue;
+      const uncertain = d.type === 'unstable' || d.type === 'observer';
+      addLink(step.from, step.to, d.id, uncertain);
+      if (d.bidirectional) addLink(step.to, step.from, d.id, uncertain);
+    }
+    // The first instruction must name a door that actually exists in this room now.
+    const exits = [...this.g.doors.visible(start, 'front'), ...this.g.doors.visible(start, 'back')];
+    links.set(start, (links.get(start) ?? []).filter(link => exits.some(v =>
+      v.door.id === link.door && !v.locked && this.g.doors.resolveTo(v.door, v.reverse) === link.to)));
     const queue = [start];
     const found = new Map<string, { from: string; door: string; uncertain: boolean }>();
     while (queue.length) {
@@ -70,6 +84,16 @@ export class MapSystem {
       }
     }
     return null;
+  }
+
+  routeInstruction(step: RouteStep): string {
+    const number = this.g.house.doors[step.door]?.displayNumber ?? '?';
+    const views = [...this.g.doors.visible(step.from, 'front'), ...this.g.doors.visible(step.from, 'back')];
+    const view = views.find(v => v.door.id === step.door && this.g.doors.resolveTo(v.door, v.reverse) === step.to);
+    if (!view) return `Porta ${number} → ${this.g.roomLabel(step.to)} (confira se ela ainda está acessível)`;
+    const side = view.reverse || view.door.side === 'back' ? 'vire para trás' : 'olhe à frente';
+    const position = view.pos === 'left' ? 'à esquerda' : view.pos === 'right' ? 'à direita' : 'no centro';
+    return `${side}; abra a porta ${number}, ${position} → ${this.g.roomLabel(step.to)}${step.uncertain ? ' · destino instável' : ''}`;
   }
 
   graph(): { nodes: MapNode[]; edges: MapEdge[] } {
@@ -134,6 +158,7 @@ export class MapSystem {
     const g = this.g, m = g.meta, h = g.house, r = h.rooms[id];
     const rec = m.rooms[id];
     const doors = (h.outDoors[id] ?? []).map(did => h.doors[did]).filter(d => m.doors[d.id]?.seen);
+    const incoming = (h.inDoors[id] ?? []).map(did => h.doors[did]).filter(d => d.bidirectional && m.doors[d.id]?.used && d.origin !== id && !d.meta);
     const doorLines = doors.map(d => {
       const dr = m.doors[d.id];
       const L = g.doors.lock(d.id);
@@ -144,6 +169,7 @@ export class MapSystem {
       if (dr?.marks?.length) s += ' ' + dr.marks.map(markGlyph).join('');
       return { id: d.id, text: s };
     });
+    for (const d of incoming) doorLines.push({ id: d.id, text: `Porta ${d.displayNumber} (atrás, retorno) → ${g.roomLabel(d.origin)}` });
     const objects = r ? [...r.front.props, ...r.back.props].filter(p => p.interact?.length && !p.invisible).map(p => p.label ?? p.kind) : [];
     const npcs = CHARACTERS.filter(c => m.npcs[c.id]?.lastEncounter?.room === id).map(c => g.npcs.displayName(c.id));
     const mysteries: string[] = [];

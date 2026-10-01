@@ -44,11 +44,19 @@ export class JournalView {
       return;
     }
     if (this.tab === 'teorias') {
-      const ts = g.memory.theories();
-      if (!ts.length) this.body.appendChild(h('div', { class: 'empty' }, 'Nada se conecta ainda. Continue abrindo portas.'));
-      for (const t of ts) this.body.appendChild(h('div', { class: 'entry theory' }, h('h3', {}, 'TEORIA: ' + t.title), h('div', { class: 'meta' }, 'Evidências:'), h('ul', {}, ...t.evidence.map(e => h('li', {}, e)))));
+      const ts = g.memory.theoryBoard();
+      this.body.appendChild(h('div', { class: 'theory-intro' }, h('b', {}, `${ts.filter(t => t.formed).length} teorias formadas · ${ts.filter(t => !t.formed).length} suspeitas`), h('div', {}, 'Cada evidência sustenta uma possibilidade. As lacunas mostram quanto ainda falta descobrir; nenhuma teoria é uma resposta definitiva.')));
+      if (!ts.length) this.body.appendChild(h('div', { class: 'empty' }, 'Nenhuma conexão ainda. Examine objetos, documentos e converse com quem encontrar.'));
+      for (const t of ts) this.body.appendChild(h('section', { class: `entry theory${t.formed ? ' formed' : ' forming'}` },
+        h('div', { class: 'theory-head' }, h('span', { class: 'theory-state' }, t.formed ? 'TEORIA EM ABERTO' : 'SUSPEITA'), h('span', { class: 'theory-count' }, `${t.evidence.length}/${t.total} pistas`)),
+        h('h3', {}, t.title),
+        h('div', { class: 'theory-meter', role: 'progressbar', 'aria-valuenow': String(t.evidence.length), 'aria-valuemax': String(t.total), 'aria-label': `Pistas de ${t.title}` }, h('span', { style: { width: `${100 * t.evidence.length / t.total}%` } })),
+        h('div', { class: 'meta' }, 'O que encontrei'),
+        h('ol', { class: 'theory-evidence' }, ...t.evidence.map(e => h('li', {}, e))),
+        h('div', { class: 'theory-next' }, t.evidence.length === t.total ? 'Todas as pistas conhecidas foram reunidas. Outras descobertas ainda podem contradizê-las.' : `${t.total - t.evidence.length} ${t.total - t.evidence.length === 1 ? 'pista ainda não encontrada' : 'pistas ainda não encontradas'}. Continue investigando os lugares e pessoas ligados a esta suspeita.`)));
       const contra = g.journal.byCat('teorias');
-      for (const e of contra) this.body.appendChild(h('div', { class: 'entry' }, e.text));
+      if (contra.length) this.body.appendChild(h('h3', { class: 'theory-contradictions' }, 'Contradições'));
+      for (const e of contra) this.body.appendChild(h('div', { class: 'entry theory-contradiction' }, e.text));
       return;
     }
     if (this.tab === 'runs') {
@@ -72,7 +80,9 @@ export class JournalView {
     if (this.tab === 'documentos') {
       const read = LORE.filter(l => m.lore.includes(l.id));
       if (!read.length) this.body.appendChild(h('div', { class: 'empty' }, 'Nenhum documento guardado.'));
-      for (const l of read) this.body.appendChild(h('button', { class: 'entry', style: { display: 'block', width: '100%', textAlign: 'left' }, onclick: () => g.ui.read(l.id) }, h('b', {}, l.title), h('div', { class: 'meta' }, l.kind)));
+      for (const l of read) this.body.appendChild(h('button', { class: 'entry document-entry', style: { display: 'flex', width: '100%', textAlign: 'left' }, onclick: () => g.ui.read(l.id) },
+        l.image ? h('img', { src: l.image, alt: '', loading: 'lazy' }) : null,
+        h('span', {}, h('b', {}, l.title), h('div', { class: 'meta' }, l.kind))));
       return;
     }
     const entries = m.journal.filter(e => e.cat === (this.tab as JournalCat)).slice().reverse();
