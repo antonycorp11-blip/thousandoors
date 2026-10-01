@@ -110,8 +110,12 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
     cam.setSize(this.scale.width, this.scale.height);
     cam.centerOn(W / 2, H / 2);
     const sx = this.scale.width / W, sy = this.scale.height / H;
-    this.vignette.setDisplaySize(W * Math.max(1, sx / sy) + 40, H * Math.max(1, sy / sx) + 40);
-    this.red.setDisplaySize(this.vignette.displayWidth, this.vignette.displayHeight);
+    // objetos fixos na tela (scrollFactor 0) usam coordenadas da tela, não do mundo: centraliza no tamanho real
+    const cx = this.scale.width / 2, cy = this.scale.height / 2;
+    this.vignette.setPosition(cx, cy).setDisplaySize(W * Math.max(1, sx / sy) + 40, H * Math.max(1, sy / sx) + 40);
+    this.red.setPosition(cx, cy).setDisplaySize(this.vignette.displayWidth, this.vignette.displayHeight);
+    this.grainSprite.setPosition(cx, cy).setSize(this.scale.width + 200, this.scale.height + 200);
+    this.black.setPosition(cx, cy);
   }
 
   private makeSharedTextures() {
@@ -568,7 +572,7 @@ export class RoomScene extends Phaser.Scene implements ScenePort {
       case 'darkness': this.black.setAlpha(0.96); this.tweens.add({ targets: this.black, alpha: 0, delay: data.ms ?? 1500, duration: 400 }); break;
       case 'damage': this.red.setAlpha(rf ? 0.35 : 0.8); this.tweens.add({ targets: this.red, alpha: 0, duration: 900 }); if (!rm) this.cameras.main.shake(180, 0.006); break;
       case 'jumpscare': {
-        const img = this.add.image(W / 2 + 120, H / 2 + 80, 'close_figure').setDepth(1800).setScrollFactor(0).setAlpha(0).setScale(1.2);
+        const img = this.add.image(this.scale.width / 2 + 120, this.scale.height / 2 + 80, 'close_figure').setDepth(1800).setScrollFactor(0).setAlpha(0).setScale(1.2);
         this.tweens.add({ targets: img, alpha: 1, scale: 1.35, duration: rf ? 400 : 90, yoyo: true, hold: 500, onComplete: () => img.destroy() });
         break;
       }

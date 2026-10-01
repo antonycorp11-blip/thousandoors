@@ -17,8 +17,13 @@ export class DialogueView {
       const choices = h('div', { class: 'choices' });
       const cont = h('div', { class: 'cont' });
       const box = h('div', { class: 'dialogue interactive' }, who, line, choices, cont);
+      // a caixa fica do lado oposto de quem fala, para o personagem continuar visível
+      const who0 = npc ?? dlg.npc;
+      const here = who0 ? this.g.npcs.presentIn(this.g.roomState.roomId).find(p => p.npc === who0) : undefined;
+      if (here) box.classList.add(here.x < 960 ? 'side-right' : 'side-left');
       this.ui.root.appendChild(box);
-      const end = () => { box.remove(); this.ui.modal--; res(); };
+      this.ui.root.classList.add('in-dialogue');
+      const end = () => { box.remove(); this.ui.modal--; this.ui.root.classList.remove('in-dialogue'); res(); };
       let nodeId: string | null = dlg.start;
       while (nodeId) {
         const node: DialogueNode | undefined = dlg.nodes[nodeId];
@@ -50,6 +55,7 @@ export class DialogueView {
         return;
       }
       if (opts.length) {
+        choices.classList.toggle('many', opts.length >= 3);
         for (const c of opts) choices.appendChild(h('button', { onclick: async (e: Event) => { e.stopPropagation(); choices.innerHTML = ''; await g.dialogue.choose(c, dlg); res(c.next ?? null); } }, c.text));
         return;
       }

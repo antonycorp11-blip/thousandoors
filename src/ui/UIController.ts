@@ -46,6 +46,7 @@ export class UIController implements UIPort, SceneInputHandler {
     this.dialogueView = new DialogueView(g, this);
     this.puzzleView = new PuzzleView(g, this);
     this.buildHud();
+    try { if (window.self !== window.top) this.root.classList.add('embedded'); } catch { this.root.classList.add('embedded'); }
     bus.on('hud', () => this.updateHud());
     bus.on('room:enter', () => { this.closeMenu(); this.updateHud(); });
     bus.on('turn', () => this.updateHud());
@@ -71,13 +72,22 @@ export class UIController implements UIPort, SceneInputHandler {
     this.heartsEl = h('div', { class: 'hearts' });
     this.fragsEl = h('div', { class: 'frags' });
     this.statsEl = h('div', { class: 'hud-stats' }, this.heartsEl, this.fragsEl);
-    this.leadEl = h('button', { class: 'hud-lead interactive', title: 'Abrir investigação', onclick: (e: Event) => { e.stopPropagation(); this.panel('journal'); } });
+    // Objetivo: etiqueta de uma linha. 1º toque expande o texto; 2º toque abre o diário.
+    let leadTimer = 0;
+    this.leadEl = h('button', { class: 'hud-lead interactive', title: 'Objetivo', onclick: (e: Event) => {
+      e.stopPropagation();
+      if (!this.leadEl.classList.contains('open')) {
+        this.leadEl.classList.add('open');
+        clearTimeout(leadTimer);
+        leadTimer = window.setTimeout(() => this.leadEl.classList.remove('open'), 6000);
+      } else { this.leadEl.classList.remove('open'); this.panel('journal'); }
+    } });
     const journalBtn = icon('journal', 'Diário', () => this.panel('journal'));
     this.journalDot = h('span', { class: 'dot hidden' });
     journalBtn.appendChild(this.journalDot);
     this.hudTop = h('div', { class: 'hud-top' },
       icon('menu', 'Menu', () => this.panel('pause')),
-      h('div', { class: 'room-title' }, this.titleEl, this.subEl, this.statsEl, this.leadEl),
+      h('div', { class: 'room-title' }, this.titleEl, this.subEl, h('div', { class: 'hud-meta' }, this.statsEl, this.leadEl)),
       h('div', { class: 'hud-right' }, icon('bag', 'Inventário', () => this.panel('inventory')), journalBtn, icon('map', 'Mapa mental', () => this.panel('map'))),
     );
     this.turnBtn = h('button', { class: 'turn-btn interactive', 'aria-label': 'Virar', onclick: (e: Event) => { e.stopPropagation(); this.g.audio.unlock(); this.closeMenu(); this.g.turn(); } });
@@ -114,7 +124,7 @@ export class UIController implements UIPort, SceneInputHandler {
     this.fragsEl.append(h('i'), h('span', {}, String(g.meta.fragments)));
     this.fragsEl.title = 'Fragmentos de Memória';
     const lead = g.investigation.active();
-    this.leadEl.textContent = lead ? `OBJETIVO · ${lead.goal}` : 'OBJETIVO · Abrir a milésima porta';
+    this.leadEl.replaceChildren(h('span', { class: 'lead-tag' }, 'Objetivo'), h('span', { class: 'lead-text' }, lead ? lead.goal : 'Abrir a milésima porta'));
     this.leadEl.title = lead ? `${lead.title} · Abrir investigações` : 'Abrir investigações';
   }
 
@@ -181,10 +191,11 @@ export class UIController implements UIPort, SceneInputHandler {
   choice(text: string, options: string[], speaker?: string): Promise<number> {
     return new Promise(res => {
       this.modal++;
+      this.root.classList.add('in-dialogue');
       const box = h('div', { class: 'choice interactive' },
         speaker ? h('div', { class: 'who', style: { fontFamily: 'var(--font-ui)', fontSize: '11px', letterSpacing: '.15em', color: 'var(--light)', textTransform: 'uppercase' } }, speaker) : null,
         text ? h('div', { class: 'q' }, text) : null,
-        ...options.map((o, i) => h('button', { onclick: (e: Event) => { e.stopPropagation(); box.remove(); this.modal--; this.g.audio.play('ui'); res(i); } }, o)));
+        ...options.map((o, i) => h('button', { onclick: (e: Event) => { e.stopPropagation(); box.remove(); this.modal--; this.root.classList.remove('in-dialogue'); this.g.audio.play('ui'); res(i); } }, o)));
       this.root.appendChild(box);
     });
   }
