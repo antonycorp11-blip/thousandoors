@@ -32,11 +32,14 @@ export const DIALOGUES: DialogueDefinition[] = [
     d: { speaker: 'sentado', text: 'Ele assente devagar, como quem aprova. — Isso. Da última vez você falou demais.', next: 'e' },
     e: { speaker: 'sentado', text: 'Da última vez, você morreu duas salas depois daqui.',
       choices: [
+        c('Achei um bilhete na minha letra. Fala de uma chave.', 'h', [], { lore: 'bilhete_t0', notFlag: 'joaquim_chave' }),
         c('Como eu morri?', 'f'),
         c('Quem é você?', 'g'),
         c('Adeus.', END),
       ] },
     f: { speaker: 'sentado', text: 'Olhando para trás. Se ouvir batidas atrás de você, conte até três antes de virar.', effects: [rumor('rumor_virar')], next: END },
+    h: { speaker: 'sentado', text: 'A porta de latão. Você sempre tranca e depois esquece por quê. A chave fica com o Mercador. Ele chega antes de todo mundo — não me pergunte como.', effects: [fl('joaquim_chave'), jr('pessoas', 'Joaquim: a chave da porta de latão está com "o Mercador", que "chega antes de todo mundo".', 'j_joaquim_chave')], next: 'i' },
+    i: { speaker: 'sentado', text: 'Mas antes, vá à sala da mesa, aqui do lado. Tem uma fotografia sua lá. Você sempre fica um tempo olhando para ela.', effects: [fl('joaquim_foto')], choices: [c('Quem é você?', 'g'), c('Obrigado.', END)] },
     g: { speaker: 'sentado', text: 'Joaquim. Estou esperando meu irmão. Ele entrou antes de você. Muito antes.', effects: [{ type: 'npc', npc: 'sentado', known: true, memory: 'disse_nome' }, jr('pessoas', 'Joaquim espera pelo irmão, que "entrou antes de mim".')], next: END },
   }),
   D('sentado_2', 'sentado', {
@@ -140,8 +143,10 @@ export const DIALOGUES: DialogueDefinition[] = [
       choices: [
         c('Como você chega antes?', 'b'),
         c('O que você vende?', 'shop'),
+        c('Preciso voltar à primeira sala.', 'volta', [], { item: 'chave_latao', doorLocked: '@r001_c' }),
       ] },
     b: { speaker: 'mercador', text: 'Com os pés. Próxima pergunta.', next: 'shop' },
+    volta: { speaker: 'mercador', text: 'Ao começo? Claro. Eu não uso portas, então não me importo de emprestar uma.', effects: [{ type: 'text', text: 'Ele abre uma porta que você não tinha visto. Do outro lado, a Sala Inicial. Quando você olha para trás, ele não está mais lá.', style: 'whisper' }, { type: 'removeNpc', npc: 'mercador' }, { type: 'teleport', room: 'r001' }], next: END },
     shop: { speaker: 'mercador', text: 'Troco coisas por coisas. Fragmentos também servem — memórias pagam bem.', trade: [
       { give: 'moeda_antiga', get: 'chave_dourada', line: 'Você não precisa saber o que ela abre.' },
       { give: 'moeda_furada', get: 'chave_mutante', line: 'Abre qualquer coisa. Qualquer uma! (Ele não olha nos seus olhos.)' },
@@ -160,9 +165,11 @@ export const DIALOGUES: DialogueDefinition[] = [
       effects: [{ type: 'if', cond: { runFlag: 'mercador_visto_1' }, then: [fl('mercador_visto_2')], else: [] }],
       choices: [
         c('Vamos negociar.', 'shop'),
+        c('Preciso voltar à primeira sala.', 'volta', [], { item: 'chave_latao', doorLocked: '@r001_c' }),
         c('Aquela chave que muda... ela abre tudo mesmo?', 'mut', [], { item: 'chave_mutante' }),
         c('Até.', END),
       ] },
+    volta: { speaker: 'mercador', text: 'Ao começo? Claro. Eu não uso portas, então não me importo de emprestar uma.', effects: [{ type: 'text', text: 'Ele abre uma porta que você não tinha visto. Do outro lado, a Sala Inicial. Quando você olha para trás, ele não está mais lá.', style: 'whisper' }, { type: 'removeNpc', npc: 'mercador' }, { type: 'teleport', room: 'r001' }], next: END },
     mut: { speaker: 'mercador', text: 'Tudo que é comum. O incomum... bom, ninguém lê as letras miúdas.', effects: [rumor('rumor_chaves')], next: 'shop' },
     shop: { speaker: 'mercador', text: 'O de sempre.', trade: [
       { give: 'moeda_antiga', get: 'chave_dourada', line: 'Você não precisa saber o que ela abre.' },

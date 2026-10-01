@@ -24,6 +24,7 @@ import { MapSystem } from '../systems/MapSystem';
 import { MetaProgressionSystem } from '../systems/MetaProgressionSystem';
 import { PuzzleSystem } from '../systems/PuzzleSystem';
 import { DialogueSystem } from '../systems/DialogueSystem';
+import { OnboardingDirector } from '../systems/OnboardingDirector';
 import { InvestigationSystem } from '../systems/InvestigationSystem';
 import { evalCond } from '../systems/Conditions';
 import { ITEMS } from '../data/items';
@@ -46,6 +47,7 @@ export interface UIPort {
   glitch(text: string, ms: number): void;
   roomTitleOverride(text: string, ms: number): void;
   journalPing(): void;
+  pulse(target: 'turn' | 'map' | 'journal' | 'bag'): void;
   death(cause: string, phrase: string): Promise<void>;
   ending(options: EndingOption[], context: string): Promise<string>;
   epilogue(title: string, text: string): Promise<void>;
@@ -63,7 +65,7 @@ export interface ScenePort {
 export const HEADLESS_UI: UIPort = {
   text: async () => {}, toast: () => {}, fragments: () => {}, achievement: () => {},
   choice: async () => 0, dialogue: async () => {}, puzzle: async () => false, read: async () => {},
-  panel: () => {}, glitch: () => {}, roomTitleOverride: () => {}, journalPing: () => {},
+  panel: () => {}, pulse: () => {}, glitch: () => {}, roomTitleOverride: () => {}, journalPing: () => {},
   death: async () => {}, ending: async (o) => o[0].id, epilogue: async () => {},
 };
 
@@ -86,6 +88,7 @@ export class GameManager {
   events: EventSystem; npcs: NpcSystem; journal: JournalSystem; memory: MemorySystem; map: MapSystem;
   progress: MetaProgressionSystem; puzzles: PuzzleSystem; dialogue: DialogueSystem;
   investigation: InvestigationSystem;
+  director: OnboardingDirector;
 
   private tickAcc = 0;
   private saveTimer: any = 0;
@@ -111,6 +114,7 @@ export class GameManager {
     this.puzzles = new PuzzleSystem(this);
     this.dialogue = new DialogueSystem(this);
     this.investigation = new InvestigationSystem(this);
+    this.director = new OnboardingDirector(this);
   }
 
   clockMs(): number { return Date.now() - this.t0; }
@@ -210,6 +214,7 @@ export class GameManager {
     bus.emit('room:enter', { room: ROOM_ZERO });
     await this.scene?.showRoom(this.currentView(), true);
     this.save();
+    void this.director.onZero();
   }
 
   async enterRoom(roomId: string, via: DoorDefinitionLike | null, opts: { side?: Side } = {}): Promise<void> {
@@ -264,6 +269,7 @@ export class GameManager {
     await this.events.fire('enter');
     this.investigation.refresh(true);
     this.protagonistThought(run.visited[roomId] === 1);
+    void this.director.onEnter(roomId, run.visited[roomId] === 1);
     const sense = this.keys.senseHere();
     if (sense) this.ui.text(sense, { style: 'whisper' });
     bus.emit('hud');
@@ -305,6 +311,7 @@ export class GameManager {
       this.doors.markSeen(this.currentView().doors);
       if (this.run) await this.events.fire('turn');
       bus.emit('turn', rs.facing);
+      void this.director.onTurn(rs.facing);
       this.save();
     } finally { this.busy = false; }
   }
@@ -316,6 +323,7 @@ export class GameManager {
     if (this.tickAcc >= 1) {
       this.tickAcc = 0;
       if (this.run && !this.busy) this.events.fire('tick');
+      this.director.onTick();
       if (this.meta.upgrades.includes('detalhes') && this.roomState.time > 9 && !this.roomState.flags.__shimmer) {
         this.roomState.flags.__shimmer = true;
         this.fx('shimmer', {});
@@ -358,6 +366,7 @@ export class GameManager {
   async propExamine(propId: string): Promise<void> {
     const p = this.prop(propId);
     if (!p) return;
+    this.meta.flags.ob_examined = true;
     if (Array.isArray(p.examine)) await this.effects.run(p.examine);
     else await this.ui.text(p.examine ?? defaultExamine(p.kind));
   }
@@ -518,7 +527,7 @@ export class GameManager {
     bus.emit('hud');
   }
 
-  async die(cause: string): Promise<void> {
+  async die(cause: string, phrase?: string): Promise<void> {
     const run = this.run;
     if (!run || this.dead) return;
     this.dead = true;
@@ -544,7 +553,7 @@ export class GameManager {
     this.audio.ambience(null);
     this.audio.musicMood('quiet');
     const phrases = ['Você esqueceu alguma coisa.', 'A Casa guarda o que você deixou cair.', 'De novo.', 'Não foi a primeira vez.', 'Alguém apaga a luz.', 'Você acorda onde sempre acorda.'];
-    await this.ui.death(cause, phrases[m.deaths % phrases.length]);
+    await this.ui.death(cause, phrase ?? phrases[m.deaths % phrases.length]);
     this.run = null;
     this.save();
     await this.enterZero();

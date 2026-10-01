@@ -37,6 +37,7 @@ export class UIController implements UIPort, SceneInputHandler {
   private ring: HTMLElement | null = null;
   private hudVisible = false;
   modal = 0;
+  private iconEls: Record<string, HTMLElement> = {};
 
   dialogueView: DialogueView;
   puzzleView: PuzzleView;
@@ -63,7 +64,7 @@ export class UIController implements UIPort, SceneInputHandler {
   // ───────────────────────────── HUD ─────────────────────────────
   private buildHud() {
     const icon = (name: keyof typeof ICONS, label: string, fn: () => void) => {
-      const b = h('button', { class: 'hud-icon interactive', 'aria-label': label, title: label, onclick: (e: Event) => { e.stopPropagation(); this.g.audio.unlock(); fn(); } });
+      const b = this.iconEls[name] = h('button', { class: 'hud-icon interactive', 'aria-label': label, title: label, onclick: (e: Event) => { e.stopPropagation(); this.g.audio.unlock(); fn(); } });
       b.appendChild(svg(ICONS[name]));
       return b;
     };
@@ -90,7 +91,7 @@ export class UIController implements UIPort, SceneInputHandler {
       h('div', { class: 'room-title' }, this.titleEl, this.subEl, h('div', { class: 'hud-meta' }, this.statsEl, this.leadEl)),
       h('div', { class: 'hud-right' }, icon('bag', 'Inventário', () => this.panel('inventory')), journalBtn, icon('map', 'Mapa mental', () => this.panel('map'))),
     );
-    this.turnBtn = h('button', { class: 'turn-btn interactive', 'aria-label': 'Virar', onclick: (e: Event) => { e.stopPropagation(); this.g.audio.unlock(); this.closeMenu(); this.g.turn(); } });
+    this.turnBtn = h('button', { class: 'turn-btn interactive', 'aria-label': 'Virar', onclick: (e: Event) => { e.stopPropagation(); this.g.audio.unlock(); this.closeMenu(); this.turnBtn.classList.remove('pulse'); this.g.turn(); } });
     this.turnBtn.appendChild(svg(ICONS.turn));
     this.turnBtn.appendChild(h('span', {}, 'VIRAR'));
     this.narration = h('div', { class: 'narration' });
@@ -185,6 +186,15 @@ export class UIController implements UIPort, SceneInputHandler {
     this.toasts.appendChild(el);
     setTimeout(() => { el.style.transition = 'opacity .8s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 900); }, 5200);
   }
+
+  /** Chama atenção para um controle sem texto de tutorial: um brilho que pulsa por alguns segundos. */
+  pulse(target: 'turn' | 'map' | 'journal' | 'bag'): void {
+    const el = target === 'turn' ? this.turnBtn : this.iconEls[target];
+    if (!el) return;
+    el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+    setTimeout(() => el.classList.remove('pulse'), 6500);
+  }
+  panelOpen(): boolean { return !!this.panelEl; }
 
   journalPing(): void { this.journalDot.classList.remove('hidden'); }
 
@@ -322,7 +332,7 @@ export class UIController implements UIPort, SceneInputHandler {
     if (this.blocked()) return;
     const acts = this.g.propActions(p.id);
     if (!acts.length) { this.g.propExamine(p.id); return; }
-    if (acts.length === 1 && !p.examine) { this.g.propAct(p.id, acts[0].idx); return; }
+    if (acts.length === 1) { this.g.propAct(p.id, acts[0].idx); return; }
     this.showMenu(p.label ?? '', [...acts.map(a => ({ label: a.label, fn: () => this.g.propAct(p.id, a.idx) })), ...(p.examine ? [{ label: 'Examinar', dim: true, fn: () => this.g.propExamine(p.id) }] : [])], sx, sy);
   }
   propExamine(p: PropView): void { if (this.blocked()) return; this.g.propExamine(p.id); }
@@ -331,6 +341,11 @@ export class UIController implements UIPort, SceneInputHandler {
     if (this.blocked()) return;
     const g = this.g;
     if (g.doors.isSimple(v)) { g.doorAction(v, 'open'); return; }
+    if (v.locked && !v.latch && !v.reverse && !g.meta.doors[v.door.id]?.lockExamined) {
+      g.audio.play('key_fail');
+      void g.doorAction(v, 'examine_lock');
+      g.fx('doorRattle', { door: v.door.id });
+    }
     const acts = g.doors.actions(v);
     const title = v.latch ? 'Trancada do outro lado' : v.locked ? 'Trancada.' : v.reverse ? 'A porta por onde você veio' : 'Porta';
     const items = acts.map(a => ({
@@ -340,7 +355,7 @@ export class UIController implements UIPort, SceneInputHandler {
       },
     }));
     if (!v.door.meta) items.push({ label: 'Marcar no mapa…', fn: () => this.markMenu(v, sx, sy) });
-    if (v.locked && !v.latch) { this.text('Trancada.'); g.audio.play('key_fail'); }
+
     this.showMenu(title, items.map((i, idx) => ({ ...i, dim: idx >= acts.length })), sx, sy);
   }
 

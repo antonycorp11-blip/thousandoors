@@ -3,6 +3,9 @@ import type { LoreFragment, RumorDefinition, TheoryDefinition, AchievementDefini
 // Lore is deliberately contradictory. See LORE_BIBLE.md for the hidden truth table.
 export const LORE: LoreFragment[] = [
   // ── MEMÓRIA ──
+  { id: 'bilhete_t0', title: 'Bilhete na Parede', kind: 'nota', axis: 'memoria', fragments: 2,
+    text: 'Na sua letra, com a tinta ainda fresca: "Se você está lendo isto, voltou. A porta da direita está trancada — fui eu que tranquei. Não tente forçar. A chave está com quem vende o que não é dele. Antes, encontre o homem que espera: ele lembra mais do que você."',
+    back: 'Assinado só com uma letra: T. E uma data. A data de hoje.' },
   { id: 'foto_casa', title: 'Fotografia Antiga', kind: 'foto', axis: 'memoria', fragments: 3, image: '/assets/photos/foto-casa.jpg',
     text: 'Sete pessoas em frente a uma casa sem janelas. Roupas de outra época. A terceira da esquerda para a direita é você — mais novo, sorrindo, com a mão no ombro de uma mulher.',
     back: 'Se você encontrou isto novamente, eu falhei.' },

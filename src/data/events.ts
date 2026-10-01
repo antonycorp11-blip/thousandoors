@@ -125,7 +125,7 @@ export const EVENTS: EventDefinition[] = [
   // ───────── Ambient / global ─────────
   { id: 'ev_whisper_name', trigger: 'tick', depth: { gte: 0.25 }, cond: { timeHere: { gte: 14 } }, chance: 0.05, once: 'visit', scare: true,
     effects: [snd('whisper', { pan: -0.8 }), t('Alguém sussurrou "Teo".', 'whisper'), { type: 'setFlag', flag: 'ouviu_teo' }] },
-  { id: 'ev_follow_start', trigger: 'enter', depth: { gte: 0.08, lte: 0.7 }, cond: { runRooms: { gte: 5 }, notRunFlag: 'followed' }, chance: 0.22, once: 'run', scare: true,
+  { id: 'ev_follow_start', trigger: 'enter', depth: { gte: 0.08, lte: 0.7 }, cond: { runRooms: { gte: 5 }, notRunFlag: 'followed', runs: { gte: 2 } }, chance: 0.22, once: 'run', scare: true,
     effects: [{ type: 'wait', ms: 900 }, snd('footsteps', { behind: true }), { type: 'setFlag', flag: 'followed', scope: 'run' }, jr('Algo começou a me seguir.')] },
   { id: 'ev_follow_continue', trigger: 'enter', cond: { runFlag: 'followed', notRunFlag: 'whistled' }, chance: 0.45, scare: true,
     effects: [{ type: 'wait', ms: 1200 }, snd('footsteps', { behind: true, volume: 0.7 }), t('Os passos continuam. Um pouco mais perto.', 'whisper')] },

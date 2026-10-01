@@ -30,3 +30,7 @@ Os eixos ocultos de Memória, Casa, Perdidos, Ruptura e Obediência respondem à
 ## Critério de conteúdo
 
 Cada sala nova precisa ter função de ritmo, pista, personagem, escolha, risco ou estranheza. Salas vazias são deliberadas. Portas especiais só funcionam como contraste com as portas banais. Pistas podem contradizer outras pistas; a contradição deve ser intencional e rastreável em `LORE_BIBLE.md`.
+
+## Primeira sessão
+
+Os primeiros 30 minutos são roteirizados: veja [FIRST_30_MINUTES.md](FIRST_30_MINUTES.md).

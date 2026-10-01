@@ -374,3 +374,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   .choice button { font-size: calc(14px * var(--ts)); min-height: 36px; padding: 6px 10px; }
   .menu button { min-height: 38px; padding: 8px 10px; font-size: calc(15px * var(--ts)); }
 }
+
+/* ── pulso: chama atenção sem tutorial ─────────────────── */
+.pulse { animation: pulseGlow 1.3s ease-in-out infinite; opacity: 1 !important; }
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(230,180,105,0); border-color: rgba(233,225,211,.18); }
+  50% { box-shadow: 0 0 0 7px rgba(230,180,105,.18), 0 0 24px rgba(230,180,105,.45); border-color: rgba(230,180,105,.85); }
+}
+@media (prefers-reduced-motion: reduce) { .pulse { animation: none; box-shadow: 0 0 0 3px rgba(230,180,105,.6); } }

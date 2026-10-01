@@ -37,6 +37,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
     back: [
       P('bulb', 960, { y: 0, light: { r: 560, i: 0.8 } }),
       WL('coat_hook', 1250, 470, { examine: 'Um cabide de parede. Vazio. Há um fio de lã preso nele — da cor do seu casaco.' }),
+      WL('note_pinned', 960, 600, { id: 'bilhete', label: 'Bilhete', anim: 'sway', examine: 'Um papel dobrado, preso com um alfinete. A letra parece a sua.', interact: [act('Ler o bilhete', [{ type: 'read', lore: 'bilhete_t0' }, { type: 'setFlag', flag: 'bilhete_lido' }, { type: 'journal', cat: 'memorias', text: 'Sala 1: um bilhete na minha letra diz que fui eu que tranquei a porta da direita. A chave está "com quem vende o que não é dele". Primeiro, encontrar "o homem que espera".', id: 'j_bilhete' }])] }),
       WL('painting', 640, 520, { id: 'painting', variant: 'landscape', examine: 'Uma paisagem escura: uma casa sem janelas num campo. Você não gosta de olhar muito.' }),
       P('clue_hint', 960, { invisible: true, hotspot: { w: 220, h: 140, secret: true }, y: 790, d: 0, examine: 'Riscos no rodapé, bem pequenos: "1".', interact: [act('Olhar os riscos', [say('Alguém contou até 1 aqui. Parou.'), clue('clue_sala1')])] }),
     ],
@@ -354,7 +355,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
     front: [
       P('lamp_shade', 960, { y: 0, light: { r: 540, i: 0.9 } }),
       F('counter', 900, 0.14, { id: 'counter', examine: 'Um balcão de madeira gasto. Coisas penduradas por toda parte.' }),
-      ON('counter', 900, 0.14, 'key_small', -120, { id: 'brass_key', cond: { noItem: 'chave_latao', doorLocked: '@r001_c' }, label: 'Chave pequena', examine: 'Uma chave pequena de latão. Há pequenas marcas na extremidade.', interact: [pickup('brass_key', 'chave_latao', 'Pegar', [say('"Essa não está à venda", diz uma voz. "Pode levar."')])] }),
+      ON('counter', 900, 0.14, 'key_small', -120, { id: 'brass_key', cond: { noItem: 'chave_latao', doorLocked: '@r001_c' }, label: 'Chave pequena', examine: 'Uma chave pequena de latão. Há pequenas marcas na extremidade.', interact: [pickup('brass_key', 'chave_latao', 'Pegar', [say('"Essa não está à venda", diz uma voz. "Pode levar. E se quiser voltar ao começo, é só me pedir."')])] }),
       ON('counter', 900, 0.14, 'scale_balance', 120, {}),
       F('shelves_jars', 1580, 0.06, {}),
     ],

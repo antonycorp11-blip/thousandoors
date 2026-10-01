@@ -17,7 +17,7 @@ const lore = (g: GameManager, id: string) => g.meta.lore.includes(id);
 const clue = (g: GameManager, id: string) => g.meta.clues.includes(id);
 const solved = (g: GameManager, id: string) => g.meta.puzzlesSolved.includes(id);
 const FOLLOW_UP: Record<string, string[]> = {
-  homem: ['prova'], prova: ['fotografia'], fotografia: ['mesa', 'arquivos'],
+  batidas: ['homem'], homem: ['prova', 'chave_latao'], prova: ['chave_latao', 'fotografia'], chave_latao: ['porta_latao'], porta_latao: ['helena', 'fotografia'], fotografia: ['mesa', 'arquivos'],
   mesa: ['arquivos', 'relogio'], arquivos: ['helena', 'maquinas'],
   helena: ['memoria', 'lia'], memoria: ['ultima'], maquinas: ['ultima'],
   relogio: ['arquivos', 'maquinas'], irmao: ['voltar_joaquim'], voltar_joaquim: ['arquivos'],
@@ -26,10 +26,20 @@ const FOLLOW_UP: Record<string, string[]> = {
 
 /** Concrete questions the player can pursue. Targets are revealed only after visiting them. */
 export const LEADS: Lead[] = [
-  { id: 'homem', title: 'O homem que espera', goal: 'Encontre o homem sentado e pergunte por que ele esperava você.', target: 'r005',
-    unlocked: () => true, done: g => met(g, 'sentado') },
+  { id: 'batidas', title: 'Batidas', goal: 'Alguém bateu atrás de você. Vire-se e veja o que é.', target: 'r001',
+    unlocked: g => g.meta.runCount <= 1 && !lore(g, 'bilhete_t0') && !met(g, 'sentado'), done: g => lore(g, 'bilhete_t0') || met(g, 'sentado') },
+  { id: 'homem', title: 'O homem que espera', goal: 'O bilhete diz: encontre o homem que espera. Ele lembra mais do que você.', target: 'r005',
+    unlocked: g => lore(g, 'bilhete_t0') || met(g, 'sentado') || g.meta.runCount > 1 || !!g.meta.rooms.r005, done: g => met(g, 'sentado') },
   { id: 'prova', title: 'Uma prova de que você já esteve aqui', goal: 'Procure algo que confirme o que o homem disse sobre suas outras visitas.', target: 'r007',
     unlocked: g => met(g, 'sentado') || !!g.meta.rooms.r007, done: g => lore(g, 'foto_casa') },
+  { id: 'chave_latao', title: 'A chave de latão', goal: 'Encontre o Mercador, "quem vende o que não é dele": ele tem a chave da porta que você trancou.', target: 'r021', important: true,
+    thought: 'Fui eu que tranquei aquela porta. Preciso saber o que deixei do outro lado.',
+    unlocked: g => !!g.meta.flags.joaquim_chave || (lore(g, 'bilhete_t0') && met(g, 'sentado')),
+    done: g => g.inventory.has('chave_latao') || !g.doors.isLocked(g.house.resolve('@r001_c')) },
+  { id: 'porta_latao', title: 'A porta prometida', goal: 'Volte à Sala 1 e abra a porta de latão. O mapa mental lembra o caminho.', target: 'r001', important: true,
+    thought: 'A porta de latão, na primeira sala. Eu sei onde isso vai.',
+    unlocked: g => g.inventory.has('chave_latao') || !g.doors.isLocked(g.house.resolve('@r001_c')),
+    done: g => !g.doors.isLocked(g.house.resolve('@r001_c')) },
   { id: 'irmao', title: 'O irmão de Joaquim', goal: 'Procure nos registros da Casa o que aconteceu com o irmão de Joaquim.', target: 'r210',
     unlocked: g => g.meta.npcs.sentado?.memories?.includes('disse_nome') ?? false, done: g => lore(g, 'lista_perdidos') },
   { id: 'fotografia', title: 'As pessoas da fotografia', goal: 'Descubra os nomes das sete pessoas retratadas com você.', target: 'r014', important: true,

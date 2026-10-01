@@ -34,14 +34,20 @@ export function showTitle(g: GameManager, ui: UIController): Promise<'continue' 
 
 /** The intro: fast, almost wordless. */
 export async function playIntro(g: GameManager, ui: UIController): Promise<void> {
+  // 0:00 — antes de qualquer imagem, algo já está errado.
   const black = h('div', { class: 'cine', style: { background: '#000' } });
   ui.root.appendChild(black);
   g.audio.unlock();
   g.audio.play('breath', { volume: 0.8 });
-  await wait(2200);
-  black.appendChild(h('div', { class: 'phrase', style: { fontSize: '22px', color: 'var(--text2)', fontStyle: 'italic' } }, 'Você não lembra de ter dormido.'));
-  await wait(2400);
-  g.audio.play('bulb_pop', { volume: 0.4 });
+  await wait(2000);
+  const line = (t: string) => { const el = h('div', { class: 'phrase', style: { fontSize: '22px', color: 'var(--text2)', fontStyle: 'italic', transition: 'opacity 1s' } }, t); black.replaceChildren(el); return el; };
+  line('Você não lembra de ter dormido.');
+  await wait(2300);
+  g.audio.play('knock', { behind: true, volume: 0.7 });
+  await wait(1500);
+  line('Alguém bate. Atrás de você.');
+  await wait(2000);
+  g.audio.play('bulb_pop', { volume: 0.45 });
   black.style.transition = 'opacity 1.6s'; black.style.opacity = '0';
   g.meta.introDone = true;
   const start = g.startRun();
@@ -49,11 +55,8 @@ export async function playIntro(g: GameManager, ui: UIController): Promise<void>
   black.remove();
   ui.setHudVisible(true);
   await start;
-  await wait(900);
-  ui.text('Três portas.', { style: 'whisper' });
-  await wait(2600);
-  ui.text('Toque numa porta para abrir. Segure para observar. Você pode se virar.', { style: 'system' });
-  ui.text('Não lembro de ter entrado. Preciso descobrir onde estou.', { speaker: 'Você', style: 'whisper' });
+  await wait(800);
+  ui.text('Uma lâmpada. Três portas. Nenhuma lembrança de como chegou aqui.', { style: 'whisper' });
 }
 
 function wait(ms: number) { return new Promise(r => setTimeout(r, ms)); }
