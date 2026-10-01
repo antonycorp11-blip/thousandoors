@@ -7,7 +7,7 @@ export const CHARACTERS: CharacterDefinition[] = [
     figure: { pose: 'hunch', coat: '#3a3a3e', hat: 'cap', skin: '#b89a82', build: 1.05 },
     talk: [
       { cond: { flag: 'sentado_despedida' }, dialogue: 'sentado_3' },
-      { cond: { runs: { gte: 4 }, npcTrust: { npc: 'sentado', gte: 2 } }, dialogue: 'sentado_despedida' },
+      { cond: { any: [{ all: [{ lore: 'lista_perdidos' }, { npcTrust: { npc: 'sentado', gte: 1 } }] }, { all: [{ runs: { gte: 2 } }, { npcTrust: { npc: 'sentado', gte: 2 } }] }] }, dialogue: 'sentado_despedida' },
       { cond: { npcKnown: 'sentado' }, dialogue: 'sentado_2' },
       { dialogue: 'sentado_1' },
     ],

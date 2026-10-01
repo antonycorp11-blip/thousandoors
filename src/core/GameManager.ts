@@ -24,6 +24,7 @@ import { MapSystem } from '../systems/MapSystem';
 import { MetaProgressionSystem } from '../systems/MetaProgressionSystem';
 import { PuzzleSystem } from '../systems/PuzzleSystem';
 import { DialogueSystem } from '../systems/DialogueSystem';
+import { InvestigationSystem } from '../systems/InvestigationSystem';
 import { evalCond } from '../systems/Conditions';
 import { ITEMS } from '../data/items';
 import { CHAR } from '../data/characters';
@@ -84,6 +85,7 @@ export class GameManager {
   doors: DoorManager; rooms: RoomManager; inventory: InventorySystem; keys: KeySystem; effects: EffectRunner;
   events: EventSystem; npcs: NpcSystem; journal: JournalSystem; memory: MemorySystem; map: MapSystem;
   progress: MetaProgressionSystem; puzzles: PuzzleSystem; dialogue: DialogueSystem;
+  investigation: InvestigationSystem;
 
   private tickAcc = 0;
   private saveTimer: any = 0;
@@ -108,6 +110,7 @@ export class GameManager {
     this.progress = new MetaProgressionSystem(this);
     this.puzzles = new PuzzleSystem(this);
     this.dialogue = new DialogueSystem(this);
+    this.investigation = new InvestigationSystem(this);
   }
 
   clockMs(): number { return Date.now() - this.t0; }
@@ -178,6 +181,7 @@ export class GameManager {
     if (anchor) this.journal.add('salas', `Recomecei a partir de uma âncora: ${this.roomLabel(anchor)}.`, 'anchor_start_' + m.runCount);
     bus.emit('run:start', this.run);
     await this.enterRoom(anchor ?? 'r001', null);
+    this.investigation.refresh();
   }
 
   /** Resume a saved run after a page reload, without counting a new visit. */
@@ -193,6 +197,7 @@ export class GameManager {
     bus.emit('room:enter', { room: run.currentRoom });
     await this.scene?.showRoom(this.currentView(), true);
     bus.emit('hud');
+    this.investigation.refresh();
   }
 
   async enterZero(): Promise<void> {
@@ -218,6 +223,13 @@ export class GameManager {
     run.currentRoom = roomId;
     run.entryDoor = via?.id ?? null;
     run.path.push(roomId);
+    if (run.path.length > 1) {
+      run.trail ??= [];
+      while (run.trail.length < run.path.length - 1) {
+        const i = run.trail.length;
+        run.trail.push({ from: run.path[i], to: run.path[i + 1], door: '', reverse: false });
+      }
+    }
     run.visited[roomId] = (run.visited[roomId] ?? 0) + 1;
     run.roomsSinceScare++;
     run.clock += 3;
@@ -247,11 +259,31 @@ export class GameManager {
     if (room.onEnter) await this.effects.run(room.onEnter, roomId + ':enter');
     if (first) await this.events.fire('firstEnter');
     await this.events.fire('enter');
+    this.investigation.refresh(true);
+    this.protagonistThought(run.visited[roomId] === 1);
     const sense = this.keys.senseHere();
     if (sense) this.ui.text(sense, { style: 'whisper' });
     bus.emit('hud');
     this.save();
     if (room.category === 'final') setTimeout(() => this.ending('auto'), 2600);
+  }
+
+  private protagonistThought(firstRunVisit: boolean): void {
+    const run = this.run;
+    if (!run || !firstRunVisit) return;
+    const n = Object.keys(run.visited).length;
+    let line: string | null = null;
+    if (n === 1 && run.run > 1) line = 'Outra vez. Desta vez quero encontrar uma resposta, não apenas sair.';
+    else if (n === 5 && !this.meta.lore.includes('foto_casa')) line = 'Já passei por salas demais para chamar isto de uma casa comum.';
+    else if (n > 0 && n % 18 === 0) {
+      const lines = [
+        'Eu ainda sei por onde vim? Preciso olhar o meu caminho.',
+        'Há alguém mudando estas salas. Quero saber se também me procura.',
+        'Não posso continuar abrindo portas sem lembrar o que estou buscando.',
+      ];
+      line = lines[(Math.floor(n / 18) - 1) % lines.length];
+    }
+    if (line) void this.ui.text(line, { speaker: 'Você', style: 'whisper' });
   }
 
   // ── perspective ──────────────────────────────────────────
@@ -314,6 +346,7 @@ export class GameManager {
     if (it.once === 'visit') this.roomState.onceEvents.add(key);
     this.audio.play('ui');
     await this.effects.run(it.effects, key);
+    this.investigation.refresh(true);
     this.refreshView();
     bus.emit('hud');
     this.save();
@@ -328,9 +361,21 @@ export class GameManager {
 
   // ── npcs ─────────────────────────────────────────────────
   async talkTo(npc: string): Promise<void> {
+    const firstMeeting = (this.meta.npcs[npc]?.encounters ?? 0) === 0;
     const d = this.npcs.dialogueFor(npc);
     this.npcs.onTalk(npc);
     if (d) await this.ui.dialogue(d, npc);
+    if (firstMeeting) {
+      const thoughts: Record<string, string> = {
+        sentado: 'Ele falou como se me conhecesse. Talvez conheça uma versão de mim que esqueci.',
+        cartografo: 'Se ele conseguiu desenhar estas salas, talvez eu consiga encontrar o caminho de volta.',
+        menina: 'Ela parece saber onde vou chegar antes de mim.',
+        arquivista: 'As respostas estão guardadas em algum lugar. Ele sabe em qual pasta.',
+        helena: 'Eu conheço a voz dela. Isso me assusta mais do que a Casa.',
+      };
+      if (thoughts[npc]) await this.ui.text(thoughts[npc], { speaker: 'Você', style: 'whisper' });
+    }
+    this.investigation.refresh(true);
     if (npc === 'semrosto' && this.run) {
       // his presence marks important places: he "looks" at the door that leads somewhere that matters
       const views = this.doors.visible(this.run.currentRoom, 'front').filter(v => !v.reverse);
@@ -436,6 +481,7 @@ export class GameManager {
       // Knowledge of a door is stored from its authored origin. Returning through it
       // still confirms the room on the far side, never a self-loop at that origin.
       this.doors.recordUse(d, v.reverse ? run.currentRoom : dest);
+      (run.trail ??= []).push({ from: run.currentRoom, to: dest, door: d.id, reverse: v.reverse });
       run.doorsOpened++;
       this.progress.achievement('ach_primeira');
       if (d.type === 'echo') this.progress.achievement('ach_eco');
@@ -448,6 +494,7 @@ export class GameManager {
   async openPuzzle(id: string): Promise<void> {
     if (this.puzzles.solved(id)) { await this.ui.text('Já está resolvido.'); return; }
     await this.ui.puzzle(id);
+    this.investigation.refresh(true);
   }
 
   // ── health & death ───────────────────────────────────────

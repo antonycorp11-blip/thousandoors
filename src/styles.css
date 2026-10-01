@@ -53,6 +53,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .room-title p { margin: 2px 0 0; font-size: calc(15px * var(--ts)); color: var(--text2); font-style: italic; }
 .hud-right { margin-left: auto; display: flex; gap: 4px; }
 .hud-stats { display: flex; gap: 14px; align-items: center; margin-top: 12px; font-family: var(--font-ui); font-size: 13px; color: var(--text2); text-shadow: 0 1px 2px #000; }
+.hud-lead { display: block; margin-top: 7px; padding: 5px 9px; max-width: min(440px, 56vw); border: 1px solid rgba(230,180,105,.42); border-radius: 3px; background: rgba(8,8,9,.68); color: var(--light); font-family: var(--font-ui); font-size: 11px; line-height: 1.3; letter-spacing: .05em; text-align: left; }
+.hud-lead:hover { background: rgba(55,42,31,.9); }
+.lead-entry { display: block; width: 100%; text-align: left; cursor: pointer; }
+.lead-entry.active { border-left: 3px solid var(--light); background: rgba(230,180,105,.08); }
+.lead-entry.done { opacity: .55; cursor: default; }
 .hearts { display: flex; gap: 3px; }
 .heart { width: 15px; height: 14px; }
 .heart path { fill: var(--wine); stroke: #c9544a; stroke-width: 1; }
@@ -148,6 +153,29 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .map-legend { position: absolute; left: 10px; bottom: 10px; font-family: var(--font-ui); font-size: 11px; color: var(--text2); background: rgba(10,10,11,.7); padding: 6px 10px; border-radius: 3px; line-height: 1.6; }
 .map-tools { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; }
 .map-tools button { width: 44px; height: 44px; border: 1px solid var(--panel-edge); border-radius: 50%; background: rgba(10,10,11,.8); font-size: 20px; }
+.map-tabs { display: flex; gap: 6px; padding: 9px 0; }
+.map-tabs button { border: 1px solid var(--panel-edge); padding: 7px 12px; border-radius: 3px; font-family: var(--font-ui); font-size: 12px; color: var(--text2); }
+.map-tabs button.on { color: var(--light); border-color: var(--light); background: rgba(230,180,105,.08); }
+.map-trail { position: absolute; inset: 0; overflow: auto; padding: 16px max(18px, calc((100% - 720px) / 2)); background: radial-gradient(ellipse at top, #29221d, #141112); touch-action: pan-y; }
+.map-trail-intro { color: var(--text2); font-style: italic; line-height: 1.4; }
+.map-trail-step { display: flex; gap: 16px; align-items: center; width: 100%; padding: 12px 8px; text-align: left; border-left: 2px solid rgba(185,165,138,.48); color: var(--text); }
+.map-trail-step:hover, .map-trail-step.current { background: rgba(230,180,105,.1); border-left-color: var(--light); }
+.map-trail-step span:last-child { display: flex; flex-direction: column; gap: 3px; }
+.map-trail-step b { font-family: var(--font-head); font-size: 19px; font-weight: 500; }
+.map-trail-step small, .map-trail-index { font-family: var(--font-ui); font-size: 11px; color: var(--text2); }
+.map-directions { padding-left: 20px; }
+@media (max-width: 700px) {
+  .hud-top { gap: 4px; }
+  .hud-icon { width: 40px; height: 40px; flex-shrink: 0; }
+  .hud-right { gap: 0; }
+  .room-title { max-width: calc(100vw - 210px); min-width: 0; }
+  .room-title h1 { font-size: calc(20px * var(--ts)); }
+  .room-title p { display: none; }
+  .hud-stats { margin-top: 4px; }
+  .hud-lead { position: fixed; top: calc(66px + var(--safe-t)); left: calc(14px + var(--safe-l)); width: calc(100vw - 28px - var(--safe-l) - var(--safe-r)); max-width: none; }
+  .map-info { left: 10px; right: 10px; top: auto; bottom: 10px; width: auto; max-height: 42%; }
+  .map-legend { display: none; }
+}
 
 /* reader (letters, photos) */
 .reader { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(4,4,5,.86); z-index: 35; animation: fadeIn .4s ease; padding: 20px; }

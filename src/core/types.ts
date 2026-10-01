@@ -650,6 +650,7 @@ export interface RunState {
   entryDoor?: string | null;
   cameFrom?: string | null;
   path: string[];
+  trail?: { from: string; to: string; door: string; reverse: boolean }[];
   visited: Record<string, number>;
   newRooms: number;
   secrets: number;

@@ -107,7 +107,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
 
   // ───────────────────── 05 — SALA COM PERSONAGEM ─────────────────────
   room({
-    number: 5, name: 'sala_personagem', title: 'Sala com Personagem', subtitle: 'Um homem sentado. Ele parece te esperar.', category: 'character', theme: 'plain', fixedExits: true,
+    number: 5, name: 'sala_personagem', title: 'O Homem Sentado', subtitle: 'Um homem sentado observa cada porta que você abre.', category: 'character', theme: 'plain', fixedExits: true,
     front: [
       F('coat_rack', 200, 0.1, { examine: 'Um cabide de pé com um casaco cinza. Nos bolsos: nada. Mas o casaco é do seu tamanho.' }),
       F('side_table', 380, 0.16, { id: 't5' }),
@@ -125,7 +125,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
 
   // ───────────────────── 06 — SALA DE EVENTO ─────────────────────
   room({
-    number: 6, name: 'sala_evento', title: 'Sala de Evento', subtitle: 'Algo aconteceu aqui.', category: 'event', theme: 'plain', fixedExits: true, tags: ['has_chair'],
+    number: 6, name: 'sala_evento', title: 'A Cadeira Caída', subtitle: 'Os papéis no chão foram espalhados às pressas.', category: 'event', theme: 'plain', fixedExits: true, tags: ['has_chair'],
     front: [
       P('bulb', 960, { y: 0, light: { r: 540, i: 0.8 }, anim: 'flicker' }),
       F('chair_fallen', 540, 0.24, { id: 'chair', examine: 'Uma cadeira caída. Uma das pernas está quebrada.', interact: [act('Levantar a cadeira', [say('Você a coloca de pé. Ela cai de novo sozinha, devagar, como se alguém a empurrasse.')], { once: 'visit' })] }),
@@ -145,7 +145,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
 
   // ───────────────────── 07 — SALA COM OBJETO ─────────────────────
   room({
-    number: 7, name: 'sala_objeto', title: 'Sala com Objeto Interativo', subtitle: 'Há algo interessante sobre a mesa.', category: 'object', theme: 'green', fixedExits: true,
+    number: 7, name: 'sala_objeto', title: 'A Mesa da Fotografia', subtitle: 'Uma fotografia virada para baixo espera sobre a mesa.', category: 'object', theme: 'green', fixedExits: true,
     front: [
       F('bookshelf', 620, 0.06, { examine: 'Livros. Muitos com o mesmo título: "Portas". Volumes diferentes.' }),
       F('table', 960, 0.2, { id: 'table', examine: 'Uma mesa de madeira escura, arranhada.' }),
@@ -166,7 +166,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
 
   // ───────────────────── 08 — SALA ESCONDIDA ─────────────────────
   room({
-    number: 8, name: 'sala_escondida', title: 'Sala Escondida', subtitle: 'Uma porta secreta?', category: 'secret', theme: 'parlor', fixedExits: true,
+    number: 8, name: 'sala_escondida', title: 'A Parede Costurada', subtitle: 'O papel de parede tem uma linha reta demais.', category: 'secret', theme: 'parlor', fixedExits: true,
     front: [
       P('chandelier', 960, { y: 0, light: { r: 520, i: 0.7 } }),
       F('sheet_table', 300, 0.12, { id: 'st' }),
@@ -186,7 +186,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
 
   // ───────────────────── 09 — SALA DIFERENTE ─────────────────────
   room({
-    number: 9, name: 'sala_diferente', title: 'Sala Diferente', subtitle: 'O ambiente está... estranho.', category: 'anomaly', theme: 'blue', tilt: -3.5, fixedExits: true, tags: ['has_clock'],
+    number: 9, name: 'sala_diferente', title: 'O Piso Inclinado', subtitle: 'A luz e o chão discordam sobre o que é reto.', category: 'anomaly', theme: 'blue', tilt: -3.5, fixedExits: true, tags: ['has_clock'],
     front: [
       P('lamp_shade', 820, { y: 0, light: { r: 480, i: 0.8 }, rot: -8 }),
       WL('painting', 280, 520, { rot: -14, variant: 'small_dark' }),
@@ -206,7 +206,7 @@ export const AUTHORED_1: AuthoredRoom[] = [
 
   // ───────────────────── 10 — SALA COM ENIGMA ─────────────────────
   room({
-    number: 10, name: 'sala_enigma', title: 'Sala com Enigma', subtitle: 'Algo precisa ser resolvido.', category: 'puzzle', theme: 'parlor', fixedExits: true, puzzle: 'p_sala10',
+    number: 10, name: 'sala_enigma', title: 'As Três Marcas', subtitle: 'Cada porta carrega um símbolo diferente.', category: 'puzzle', theme: 'parlor', fixedExits: true, puzzle: 'p_sala10',
     front: [
       WL('symbol', 560, 400, { variant: 'circulo', examine: 'Um círculo pintado acima da porta.' }),
       WL('symbol', 960, 400, { variant: 'triangulo', id: 's2', examine: 'Um triângulo pintado acima da porta.' }),

@@ -9,6 +9,24 @@ const jr = (text: string): Effect => ({ type: 'journal', cat: 'eventos', text })
  * gated by conditions, seeded chance and once-rules. Scares respect a global cooldown.
  */
 export const EVENTS: EventDefinition[] = [
+  { id: 'ev_photo_fallback', trigger: 'enter', tags: ['generated'], cond: { runRooms: { gte: 10 }, noLore: 'foto_casa' }, once: 'run', priority: 6,
+    effects: [snd('paper', { behind: true }), { type: 'text', text: 'Uma fotografia desliza por baixo da porta atrás de mim. Alguém quer que eu a encontre.', speaker: 'Você', style: 'whisper' },
+      { type: 'choice', text: 'Uma fotografia antiga mostra sete pessoas diante da Casa. Uma delas tem o seu rosto.', options: [
+        { text: 'Pegar e examinar', effects: [{ type: 'giveItem', item: 'fotografia_casa' }, { type: 'read', lore: 'foto_casa' }] },
+        { text: 'Deixar onde está', effects: [{ type: 'mapNote', room: 'r007', text: 'A fotografia também foi vista mais cedo, numa mesa da Ala Residencial.' }] },
+      ] }] },
+  // A significant discovery follows the player into the next room.
+  { id: 'ev_lead_photo', trigger: 'enter', cond: { flag: 'lead_pending_fotografia' }, priority: 8,
+    effects: [{ type: 'clearFlag', flag: 'lead_pending_fotografia' }, snd('footsteps', { behind: true, volume: 0.45 }),
+      t('Duas vozes conversam atrás de uma porta. Quando você se aproxima, dizem o seu nome e se calam.', 'whisper'),
+      { type: 'text', text: 'Eles me conhecem. Eu preciso descobrir os nomes daquela foto.', speaker: 'Você', style: 'whisper' }] },
+  { id: 'ev_lead_names', trigger: 'enter', cond: { flag: 'lead_pending_mesa' }, priority: 8,
+    effects: [{ type: 'clearFlag', flag: 'lead_pending_mesa' }, snd('creak', { volume: 0.5 }),
+      { type: 'text', text: 'A mesa dos sete lugares. Agora sei onde cada um deveria sentar.', speaker: 'Você', style: 'whisper' }] },
+  { id: 'ev_lead_clock', trigger: 'enter', cond: { flag: 'lead_pending_relogio' }, priority: 8,
+    effects: [{ type: 'clearFlag', flag: 'lead_pending_relogio' }, snd('tick', { volume: 0.55 }),
+      t('Um relógio que você não consegue ver bate uma única vez. Os outros respondem.', 'whisper'),
+      { type: 'text', text: '3:17. Vou lembrar disso.', speaker: 'Você', style: 'whisper' }] },
   // ───────── Authored room events ─────────
   { id: 'ev_r001_chair', trigger: 'turn', rooms: ['r001'], cond: { turnsHere: { gte: 2 }, facing: 'front', runs: { gte: 0 } }, once: 'forever', scare: true,
     effects: [{ type: 'prop', prop: 'chair', x: 1250, flip: true, scope: 'meta' }, snd('creak', { pan: 0.4 }), t('A cadeira... não estava ali?', 'whisper'), jr('Sala 1: a cadeira mudou de lugar enquanto eu não olhava.')] },
@@ -73,12 +91,18 @@ export const EVENTS: EventDefinition[] = [
   { id: 'ev_r330_almost', trigger: 'enter', rooms: ['r330'], effects: [{ type: 'roomTitle', text: 'Quase.', ms: 2500 }] },
 
   // ───────── Perspective (turning) events — RoomPerspectiveEvent ─────────
-  { id: 'ev_knock_behind', trigger: 'tick', tags: ['generated'], depth: { gte: 0.06 }, cond: { timeHere: { gte: 7 }, facing: 'front', notRoomFlag: 'knocked' }, chance: 0.1, once: 'visit', scare: true,
+  { id: 'ev_knock_behind', trigger: 'tick', tags: ['generated'], depth: { gte: 0.02 }, cond: { timeHere: { gte: 11 }, facing: 'front', notRoomFlag: 'knocked' }, chance: 0.65, once: 'visit', scare: true,
     effects: [snd('knock', { behind: true }), { type: 'setFlag', flag: 'knocked', value: '$now', scope: 'room' }, t('Batidas. Atrás de você.', 'whisper')], note: 'Player must decide whether to turn.' },
   { id: 'ev_knock_turn_fast', trigger: 'turn', cond: { roomFlag: 'knocked', notRoomFlag: 'knock_resolved', since: { flag: 'knocked', lte: 2.5 } }, priority: 5,
-    effects: [{ type: 'setFlag', flag: 'knock_resolved', scope: 'room' }, { type: 'if', cond: { setting: { key: 'softScares', value: false } }, then: [{ type: 'jumpscare', kind: 'face', soft: 'Por um instante, algo recua para dentro da parede.' }], else: [t('Por um instante, algo recua para dentro da parede.')] }, { type: 'damage', n: 1, cause: 'virar rápido demais' }, { type: 'achievement', id: 'ach_olhou' }] },
+    effects: [{ type: 'setFlag', flag: 'knock_resolved', scope: 'room' }, { type: 'if', cond: { setting: { key: 'softScares', value: false } }, then: [{ type: 'jumpscare', kind: 'face', soft: 'Por um instante, algo recua para dentro da parede.' }], else: [t('Por um instante, algo recua para dentro da parede.')] }, t('Virei cedo demais. Agora sei que havia alguém aqui.', 'whisper'), { type: 'achievement', id: 'ach_olhou' }] },
   { id: 'ev_knock_turn_patient', trigger: 'turn', cond: { roomFlag: 'knocked', notRoomFlag: 'knock_resolved', since: { flag: 'knocked', gte: 2.5 } }, priority: 5,
-    effects: [{ type: 'setFlag', flag: 'knock_resolved', scope: 'room' }, t('Não há ninguém. No chão, onde as batidas vinham, alguém deixou uma coisa.'), { type: 'random', salt: 'knockgift', options: [[{ type: 'giveItem', item: 'pao' }], [{ type: 'giveItem', item: 'moeda_furada' }], [{ type: 'giveItem', item: 'fosforos' }], [{ type: 'fragments', n: 2 }]] }] },
+    effects: [{ type: 'setFlag', flag: 'knock_resolved', scope: 'room' }, { type: 'random', salt: 'knockgift', options: [
+      [t('Uma voz conhecida: "Achei que você não ia ouvir." Alguém estava aqui o tempo todo.'), { type: 'spawnNpc', npc: 'cartografo', side: 'back', x: 1300 }],
+      [t('Um homem se afasta da porta, carregando uma mochila grande demais.'), { type: 'spawnNpc', npc: 'mercador', side: 'back', x: 1200 }],
+      [t('Não há ninguém. No chão, onde as batidas vinham, alguém deixou pão.'), { type: 'giveItem', item: 'pao' }],
+      [t('Não há ninguém. Uma moeda furada gira no chão.'), { type: 'giveItem', item: 'moeda_furada' }],
+      [t('Não há ninguém. Mas os passos seguem para a próxima sala.'), { type: 'setFlag', flag: 'followed', scope: 'run' }],
+    ] }] },
   { id: 'ev_knock_ignore', trigger: 'tick', cond: { roomFlag: 'knocked', notRoomFlag: 'knock_resolved', since: { flag: 'knocked', gte: 12 } },
     effects: [{ type: 'setFlag', flag: 'knock_resolved', scope: 'room' }, t('As batidas param. Alguém suspira, desapontado.', 'whisper'), { type: 'route', axis: 'obediencia', n: 1 }] },
   { id: 'ev_door_vanish', trigger: 'turn', tags: ['generated'], depth: { gte: 0.1 }, cond: { facing: 'front', turnsHere: { gte: 2 } }, chance: 0.14, once: 'visit', scare: true,
@@ -101,7 +125,7 @@ export const EVENTS: EventDefinition[] = [
   // ───────── Ambient / global ─────────
   { id: 'ev_whisper_name', trigger: 'tick', depth: { gte: 0.25 }, cond: { timeHere: { gte: 14 } }, chance: 0.05, once: 'visit', scare: true,
     effects: [snd('whisper', { pan: -0.8 }), t('Alguém sussurrou "Teo".', 'whisper'), { type: 'setFlag', flag: 'ouviu_teo' }] },
-  { id: 'ev_follow_start', trigger: 'enter', depth: { gte: 0.08, lte: 0.7 }, cond: { runRooms: { gte: 5 }, notRunFlag: 'followed' }, chance: 0.06, once: 'run', scare: true,
+  { id: 'ev_follow_start', trigger: 'enter', depth: { gte: 0.08, lte: 0.7 }, cond: { runRooms: { gte: 5 }, notRunFlag: 'followed' }, chance: 0.22, once: 'run', scare: true,
     effects: [{ type: 'wait', ms: 900 }, snd('footsteps', { behind: true }), { type: 'setFlag', flag: 'followed', scope: 'run' }, jr('Algo começou a me seguir.')] },
   { id: 'ev_follow_continue', trigger: 'enter', cond: { runFlag: 'followed', notRunFlag: 'whistled' }, chance: 0.45, scare: true,
     effects: [{ type: 'wait', ms: 1200 }, snd('footsteps', { behind: true, volume: 0.7 }), t('Os passos continuam. Um pouco mais perto.', 'whisper')] },

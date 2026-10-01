@@ -55,6 +55,10 @@ export function migrate(raw: any): SaveData {
   d.meta.route = { ...base.route, ...d.meta.route };
   d.settings = { ...defaultSettings(), ...(d.settings ?? {}) };
   if (d.run && (typeof d.run.currentRoom !== 'string' || !Array.isArray(d.run.inventory))) d.run = null;
+  if (d.run && !Array.isArray(d.run.trail)) {
+    const path: string[] = Array.isArray(d.run.path) ? d.run.path : [];
+    d.run.trail = path.slice(1).map((to, i) => ({ from: path[i], to, door: '', reverse: false }));
+  }
   d.version = SAVE_VERSION;
   d.meta.version = SAVE_VERSION;
   return d as SaveData;

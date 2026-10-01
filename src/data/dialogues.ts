@@ -52,7 +52,7 @@ export const DIALOGUES: DialogueDefinition[] = [
     d: { speaker: 'sentado', text: 'Se eu levantar, perco o lugar. E se ele voltar e eu não estiver? Não. Vai você.', effects: [tr('sentado', 1), { type: 'npc', npc: 'sentado', memory: 'convidado' }], next: END },
   }),
   D('sentado_despedida', 'sentado', {
-    a: { speaker: 'sentado', text: 'Pensei no que você disse. Sobre procurar junto.', choices: [
+    a: { speaker: 'sentado', text: 'Você voltou. Encontrou alguma coisa sobre quem está perdido aqui?', choices: [
       c('E?', 'b'),
     ] },
     b: { speaker: 'sentado', text: 'Acho que ele não vai voltar. Então eu vou até ele. Fique com isto. Era dele.', effects: [give('botao'), fl('sentado_despedida'), fl('botao_achado'), { type: 'npc', npc: 'sentado', location: null }, jr('pessoas', 'Joaquim levantou da cadeira pela primeira vez e foi procurar o irmão.'), rt('perdidos', 2)], next: END },

@@ -17,6 +17,8 @@ describe('exploration flow', () => {
     expect(g.run?.currentRoom).toBe(destination);
     expect(g.meta.doors[door!.door.id].lastDest).toBe(destination);
     expect(g.map.graph().edges.some(e => e.door === door!.door.id && e.to === destination)).toBe(true);
+    expect(g.run?.trail?.at(-1)).toEqual({ from: 'r001', to: destination, door: door!.door.id, reverse: false });
+    expect(g.map.routeTo('r001')).toEqual([{ from: destination, to: 'r001', door: door!.door.id, uncertain: false }]);
 
     const returnDoor = g.rooms.view(destination!, 'back').doors.find(v => v.reverse && v.door.id === door!.door.id);
     expect(returnDoor).toBeDefined();
@@ -24,6 +26,7 @@ describe('exploration flow', () => {
     expect(g.run?.currentRoom).toBe('r001');
     expect(g.meta.doors[door!.door.id].lastDest).toBe(destination);
     expect(g.map.graph().edges.some(e => e.door === door!.door.id && e.from === e.to)).toBe(false);
+    expect(g.run?.trail?.at(-1)?.reverse).toBe(true);
   });
 
   it('restores the active side and visit events after a reload', async () => {
@@ -64,6 +67,7 @@ describe('exploration flow', () => {
     await g.startRun();
     const old = structuredClone(g.snapshot());
     delete old.run!.roomVisit;
+    delete old.run!.trail;
     old.run!.facing = 'back';
     const saved = migrate(old);
 
@@ -74,6 +78,45 @@ describe('exploration flow', () => {
 
     expect(reloaded.roomState.facing).toBe('back');
     expect(reloaded.roomState.roomId).toBe(old.run!.currentRoom);
+    expect(saved.run?.trail).toEqual([]);
+  });
+
+  it('opens a new investigation when a major clue is found', async () => {
+    const g = new GameManager({ headless: true });
+    await g.startRun();
+    g.memory.addLore('foto_casa');
+    g.investigation.refresh(true);
+    expect(g.investigation.active()?.id).toBe('fotografia');
+    expect(g.meta.flags.lead_pending_fotografia).toBe(true);
+    g.memory.addClue('clue_ordem_sete');
+    g.investigation.refresh(true);
+    expect(g.investigation.active()?.id).toBe('mesa');
+    g.meta.puzzlesSolved.push('p_mesa_jantar');
+    g.investigation.refresh(true);
+    expect(g.investigation.active()?.id).toBe('arquivos');
+  });
+
+  it('keeps an older exploration readable when its door trail is missing', async () => {
+    const g = new GameManager({ headless: true });
+    await g.startRun();
+    const saved = structuredClone(g.snapshot());
+    saved.run!.path = ['r001', 'r002', 'r005'];
+    delete saved.run!.trail;
+    const migrated = migrate(saved);
+    expect(migrated.run?.trail).toEqual([
+      { from: 'r001', to: 'r002', door: '', reverse: false },
+      { from: 'r002', to: 'r005', door: '', reverse: false },
+    ]);
+  });
+
+  it('places a person after seven rooms in one exploration without an encounter', async () => {
+    const g = new GameManager({ headless: true });
+    await g.startRun();
+    const room = Object.values(g.house.rooms).find(r => r.tags.includes('generated') && r.category === 'normal' && !g.npcs.presentIn(r.id).length)!;
+    g.run!.visited = Object.fromEntries(['r001', 'r002', 'r003', 'r004', 'r006', 'r007', room.id].map(id => [id, 1]));
+    g.npcs.onEnterRoom(room.id);
+    expect(g.npcs.presentIn(room.id).length).toBe(1);
+    expect(g.run!.flags.lastPersonRunRooms).toBe(7);
   });
 
   it('does not restore a queued autosave after resetting all progress', async () => {

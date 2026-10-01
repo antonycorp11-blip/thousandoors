@@ -73,9 +73,10 @@ export class InventorySystem {
   async use(id: string): Promise<void> {
     const def = ITEMS[id];
     if (!def) return;
-    if (def.read) { await this.g.effects.run([{ type: 'read', lore: def.read }]); }
+    if (def.read) { await this.g.effects.run([{ type: 'read', lore: def.read }]); this.g.investigation.refresh(true); }
     if (def.use) {
       await this.g.effects.run(def.use);
+      this.g.investigation.refresh(true);
       if (def.category === 'consumivel') this.remove(id);
     }
     if (def.key?.combineWith && this.has(def.key.combineWith)) await this.g.keys.combine(id);

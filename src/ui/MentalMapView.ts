@@ -17,6 +17,11 @@ export class MentalMapView {
   private byId = new Map<string, N>();
   private zoom = 1; private ox = 0; private oy = 0;
   private info: HTMLElement;
+  private trailEl: HTMLElement;
+  private toolsEl: HTMLElement;
+  private legendEl: HTMLElement;
+  private tabsEl: HTMLElement;
+  private mode: 'trail' | 'known' = 'trail';
   private selected: string | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
   private dragMoved = 0;
@@ -29,15 +34,22 @@ export class MentalMapView {
     this.cv = h('canvas');
     this.ctx = this.cv.getContext('2d')!;
     this.info = h('div', { class: 'map-info hidden' });
-    const wrap = h('div', { class: 'map-wrap' }, this.cv, this.info,
-      h('div', { class: 'map-tools' },
+    this.trailEl = h('div', { class: 'map-trail' });
+    this.toolsEl = h('div', { class: 'map-tools' },
         h('button', { onclick: () => this.zoomBy(1.25), 'aria-label': 'Aproximar' }, '+'),
         h('button', { onclick: () => this.zoomBy(0.8), 'aria-label': 'Afastar' }, '−'),
-        h('button', { onclick: () => this.center(), 'aria-label': 'Centralizar' }, '◎')),
-      h('div', { class: 'map-legend' }, '— porta conhecida · - - instável · → sentido único · 🔒 promessa (porta trancada) · ◈ enigma · ⚓ âncora'));
+        h('button', { onclick: () => this.center(), 'aria-label': 'Centralizar' }, '◎'));
+    this.legendEl = h('div', { class: 'map-legend' }, '— porta conhecida · - - instável · → sentido único · 🔒 promessa · ◈ enigma · ⚓ âncora');
+    const wrap = h('div', { class: 'map-wrap' }, this.cv, this.info, this.trailEl, this.toolsEl, this.legendEl);
     const known = Object.keys(g.meta.rooms).length;
-    this.el = h('div', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Mapa Mental'), h('span', { class: 'sub' }, `${known} salas lembradas`), h('button', { class: 'close', onclick: close, 'aria-label': 'Fechar' }, '×')), wrap);
+    this.tabsEl = h('div', { class: 'map-tabs' },
+      h('button', { onclick: () => this.setMode('trail') }, 'Meu caminho'),
+      h('button', { onclick: () => this.setMode('known') }, 'Portas conhecidas'));
+    this.el = h('div', { class: 'panel' }, h('div', { class: 'panel-head' }, h('h2', {}, 'Mapa Mental'), h('span', { class: 'sub' }, `${known} salas lembradas`), h('button', { class: 'close', onclick: close, 'aria-label': 'Fechar' }, '×')), this.tabsEl, wrap);
     this.build();
+    this.selected = this.g.run?.currentRoom ?? null;
+    this.renderTrail();
+    this.setMode(this.g.run ? 'trail' : 'known');
     this.bind();
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(wrap);
@@ -45,6 +57,37 @@ export class MentalMapView {
   }
 
   destroy = () => { cancelAnimationFrame(this.raf); this.ro.disconnect(); this.saveLayout(); };
+
+  private setMode(mode: 'trail' | 'known') {
+    this.mode = mode;
+    this.cv.style.display = mode === 'known' ? '' : 'none';
+    this.info.style.display = mode === 'known' ? '' : 'none';
+    this.toolsEl.style.display = mode === 'known' ? '' : 'none';
+    this.legendEl.style.display = mode === 'known' ? '' : 'none';
+    this.trailEl.style.display = mode === 'trail' ? '' : 'none';
+    [...this.tabsEl.children].forEach((el, i) => el.classList.toggle('on', i === (mode === 'trail' ? 0 : 1)));
+    if (mode === 'known') { this.resize(); this.showInfo(); this.center(); }
+  }
+
+  private renderTrail() {
+    const run = this.g.run;
+    this.trailEl.innerHTML = '';
+    if (!run) { this.trailEl.appendChild(h('p', {}, 'Seu caminho aparecerá quando você entrar na Casa.')); return; }
+    this.trailEl.appendChild(h('p', { class: 'map-trail-intro' }, 'Uma corda pela Casa: cada passo desta exploração, na ordem em que você o deu. Toque numa sala para vê-la no mapa de portas.'));
+    const path = run.path.length ? run.path : [run.currentRoom];
+    for (let i = 0; i < path.length; i++) {
+      const id = path[i];
+      const step = i > 0 ? run.trail?.[i - 1] : null;
+      const d = step?.to === id ? this.g.house.doors[step.door] : null;
+      const via = i === 0 ? 'Início desta exploração' : d ? `pela porta ${d.displayNumber}${step?.reverse ? ' · retorno' : ''}` : 'passagem não registrada';
+      const room = this.g.house.rooms[id];
+      this.trailEl.appendChild(h('button', { class: `map-trail-step${i === path.length - 1 ? ' current' : ''}`, onclick: () => {
+        this.selected = id; this.setMode('known');
+      } }, h('span', { class: 'map-trail-index' }, String(i + 1).padStart(2, '0')),
+      h('span', {}, h('b', {}, `${this.g.roomLabel(id)} · ${room?.title ?? ''}`), h('small', {}, via))));
+    }
+    requestAnimationFrame(() => { this.trailEl.scrollTop = this.trailEl.scrollHeight; });
+  }
 
   private build() {
     const { nodes, edges } = this.g.map.graph();
@@ -173,9 +216,13 @@ export class MentalMapView {
       return;
     }
     const info = this.g.map.roomInfo(id);
+    const route = this.g.map.routeTo(id);
     this.info.append(...[
       h('h3', {}, info.title), h('div', { class: 'sub' }, info.subtitle),
       h('div', { class: 'meta' }, `Visitas: ${info.visits}`),
+      route?.length ? h('h4', {}, 'Como chegar daqui') : null,
+      route?.length ? h('ol', { class: 'map-directions' }, ...route.map(s => h('li', {}, `${this.g.roomLabel(s.from)}: porta ${this.g.house.doors[s.door]?.displayNumber ?? '?'} → ${this.g.roomLabel(s.to)}${s.uncertain ? ' (pode mudar)' : ''}`))) : null,
+      route === null && info.visits ? h('div', { class: 'meta' }, 'Não há um caminho de volta confirmado pelas portas conhecidas.') : null,
       info.doors.length ? h('h4', {}, 'Portas conhecidas') : null, info.doors.length ? h('ul', {}, ...info.doors.map(d => h('li', {}, d.text))) : null,
       info.objects.length ? h('h4', {}, 'Objetos notados') : null, info.objects.length ? h('ul', {}, ...info.objects.map(o => h('li', {}, o))) : null,
       info.npcs.length ? h('h4', {}, 'Pessoas vistas aqui') : null, info.npcs.length ? h('ul', {}, ...info.npcs.map(o => h('li', {}, o))) : null,
@@ -220,6 +267,13 @@ export class MentalMapView {
       c.beginPath(); c.moveTo(a.x, a.y);
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + 10;
       c.quadraticCurveTo(mx, my, b.x, b.y); c.stroke();
+      if (!e.locked && (e.from === this.selected || e.to === this.selected)) {
+        c.setLineDash([]);
+        c.font = '11px sans-serif'; c.textAlign = 'center';
+        const label = String(this.g.house.doors[e.door]?.displayNumber ?? '?');
+        c.fillStyle = 'rgba(10,10,11,.88)'; c.fillRect(mx - 16, my - 11, 32, 20);
+        c.fillStyle = '#e6b469'; c.fillText(label, mx, my);
+      }
       if (e.oneway) { const ang = Math.atan2(b.y - my, b.x - mx); c.setLineDash([]); c.fillStyle = c.strokeStyle as string; c.beginPath(); c.moveTo(b.x - Math.cos(ang) * 18, b.y - Math.sin(ang) * 18); c.lineTo(b.x - Math.cos(ang - 0.4) * 30, b.y - Math.sin(ang - 0.4) * 30); c.lineTo(b.x - Math.cos(ang + 0.4) * 30, b.y - Math.sin(ang + 0.4) * 30); c.fill(); }
       c.restore();
     }

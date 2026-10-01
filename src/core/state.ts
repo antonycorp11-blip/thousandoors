@@ -33,7 +33,7 @@ export function newRun(runNumber: number, seed: number, room: string, maxHp: num
   return {
     run: runNumber, seed, startedAt: Date.now(), hp: maxHp, maxHp, inventory,
     keyUses: {}, currentRoom: room, facing: 'front', entryDoor: null, cameFrom: null,
-    path: [], visited: {}, newRooms: 0, secrets: 0, doorsOpened: 0, keysUsed: 0,
+    path: [], trail: [], visited: {}, newRooms: 0, secrets: 0, doorsOpened: 0, keysUsed: 0,
     flags: {}, turnsTotal: 0, onceEvents: [], doorOverrides: {}, propOverrides: {},
     npcPositions: {}, npcSpawns: {}, lastDoorMaterials: [], relockedDoors: [], clock: 0,
     lastScareAt: 0, roomsSinceScare: 0,

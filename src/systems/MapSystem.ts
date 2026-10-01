@@ -29,6 +29,49 @@ export interface MapEdge {
 export class MapSystem {
   constructor(private g: GameManager) {}
 
+  /** Directions through doors the player has actually used. */
+  routeTo(target: string): { from: string; to: string; door: string; uncertain: boolean }[] | null {
+    const start = this.g.run?.currentRoom;
+    if (!start || !this.g.meta.rooms[target]) return null;
+    if (start === target) return [];
+    const { edges } = this.graph();
+    const links = new Map<string, { to: string; door: string; uncertain: boolean }[]>();
+    const addLink = (from: string, to: string, door: string, uncertain: boolean) => {
+      const list = links.get(from) ?? [];
+      list.push({ to, door, uncertain });
+      links.set(from, list);
+    };
+    for (const e of edges) {
+      if (e.locked || e.style === 'faint' || !this.g.meta.rooms[e.from] || !this.g.meta.rooms[e.to]) continue;
+      const d = this.g.house.doors[e.door];
+      if (!d || this.g.doors.isLocked(d.id)) continue;
+      const uncertain = d.type === 'unstable' || d.type === 'observer';
+      addLink(e.from, e.to, e.door, uncertain);
+      if (d.bidirectional) addLink(e.to, e.from, e.door, uncertain);
+    }
+    const queue = [start];
+    const found = new Map<string, { from: string; door: string; uncertain: boolean }>();
+    while (queue.length) {
+      const from = queue.shift()!;
+      for (const link of links.get(from) ?? []) {
+        if (link.to === start || found.has(link.to)) continue;
+        found.set(link.to, { from, door: link.door, uncertain: link.uncertain });
+        if (link.to === target) {
+          const route: { from: string; to: string; door: string; uncertain: boolean }[] = [];
+          let to = target;
+          while (to !== start) {
+            const step = found.get(to)!;
+            route.unshift({ from: step.from, to, door: step.door, uncertain: step.uncertain });
+            to = step.from;
+          }
+          return route;
+        }
+        queue.push(link.to);
+      }
+    }
+    return null;
+  }
+
   graph(): { nodes: MapNode[]; edges: MapEdge[] } {
     const g = this.g, m = g.meta, h = g.house;
     const nodes = new Map<string, MapNode>();

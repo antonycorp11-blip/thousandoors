@@ -97,9 +97,26 @@ export class NpcSystem {
   }
 
   onEnterRoom(room: string): void {
-    const here = this.presentIn(room);
+    let here = this.presentIn(room);
     const run = this.g.run;
     if (!run) return;
+    const runRooms = Object.keys(run.visited).length;
+    const def = this.g.house.rooms[room];
+    if (here.length) run.flags.lastPersonRunRooms = runRooms;
+    else if (runRooms - (run.flags.lastPersonRunRooms ?? 0) >= 7 && def &&
+      def.category !== 'danger' && def.category !== 'final' && def.category !== 'memory' && room !== 'r333') {
+      const candidates = ['cartografo', 'mercador', 'enfermeira', 'fotografa', 'construtor', 'arquivista', 'helena', 'relojoeiro']
+        .filter(id => this.state(id).alive && this.state(id).location !== null && id !== run.flags.lastGuideNpc);
+      const focus: Record<string, string> = { arquivos: 'arquivista', visitante: 'arquivista', helena: 'helena', lia: 'helena', relogio: 'relojoeiro', maquinas: 'construtor' };
+      const preferred = focus[this.g.investigation.active()?.id ?? ''];
+      const pick = preferred && candidates.includes(preferred) ? preferred : candidates[(Math.floor(runRooms / 7) + run.run) % candidates.length];
+      if (pick) {
+        this.put(pick, room, 'front', this.freeX(room, RNG.from('guide', run.seed, room)));
+        run.flags.lastPersonRunRooms = runRooms;
+        run.flags.lastGuideNpc = pick;
+        here = this.presentIn(room);
+      }
+    }
     for (const p of here) {
       if (p.npc === 'mercador') {
         const c = (run.flags.merchant_seen ?? 0) + 1;

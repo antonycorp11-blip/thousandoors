@@ -53,6 +53,7 @@ export async function playIntro(g: GameManager, ui: UIController): Promise<void>
   ui.text('Três portas.', { style: 'whisper' });
   await wait(2600);
   ui.text('Toque numa porta para abrir. Segure para observar. Você pode se virar.', { style: 'system' });
+  ui.text('Não lembro de ter entrado. Preciso descobrir onde estou.', { speaker: 'Você', style: 'whisper' });
 }
 
 function wait(ms: number) { return new Promise(r => setTimeout(r, ms)); }

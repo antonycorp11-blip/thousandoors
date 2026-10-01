@@ -25,6 +25,7 @@ export class UIController implements UIPort, SceneInputHandler {
   private heartsEl!: HTMLElement;
   private fragsEl!: HTMLElement;
   private statsEl!: HTMLElement;
+  private leadEl!: HTMLElement;
   private journalDot!: HTMLElement;
   private turnBtn!: HTMLElement;
   private narration!: HTMLElement;
@@ -70,12 +71,13 @@ export class UIController implements UIPort, SceneInputHandler {
     this.heartsEl = h('div', { class: 'hearts' });
     this.fragsEl = h('div', { class: 'frags' });
     this.statsEl = h('div', { class: 'hud-stats' }, this.heartsEl, this.fragsEl);
+    this.leadEl = h('button', { class: 'hud-lead interactive', title: 'Abrir investigação', onclick: (e: Event) => { e.stopPropagation(); this.panel('journal'); } });
     const journalBtn = icon('journal', 'Diário', () => this.panel('journal'));
     this.journalDot = h('span', { class: 'dot hidden' });
     journalBtn.appendChild(this.journalDot);
     this.hudTop = h('div', { class: 'hud-top' },
       icon('menu', 'Menu', () => this.panel('pause')),
-      h('div', { class: 'room-title' }, this.titleEl, this.subEl, this.statsEl),
+      h('div', { class: 'room-title' }, this.titleEl, this.subEl, this.statsEl, this.leadEl),
       h('div', { class: 'hud-right' }, icon('bag', 'Inventário', () => this.panel('inventory')), journalBtn, icon('map', 'Mapa mental', () => this.panel('map'))),
     );
     this.turnBtn = h('button', { class: 'turn-btn interactive', 'aria-label': 'Virar', onclick: (e: Event) => { e.stopPropagation(); this.g.audio.unlock(); this.closeMenu(); this.g.turn(); } });
@@ -111,6 +113,9 @@ export class UIController implements UIPort, SceneInputHandler {
     this.fragsEl.innerHTML = '';
     this.fragsEl.append(h('i'), h('span', {}, String(g.meta.fragments)));
     this.fragsEl.title = 'Fragmentos de Memória';
+    const lead = g.investigation.active();
+    this.leadEl.textContent = lead ? `OBJETIVO · ${lead.goal}` : 'OBJETIVO · Abrir a milésima porta';
+    this.leadEl.title = lead ? `${lead.title} · Abrir investigações` : 'Abrir investigações';
   }
 
   private applySettings() {

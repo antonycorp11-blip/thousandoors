@@ -5,6 +5,7 @@ import { ACHIEVEMENTS, LORE } from '../data/lore';
 import { h } from './dom';
 
 const TABS: { id: string; label: string }[] = [
+  { id: 'investigacoes', label: 'Investigações' },
   { id: 'pessoas', label: 'Pessoas' }, { id: 'salas', label: 'Salas' }, { id: 'portas', label: 'Portas' }, { id: 'chaves', label: 'Chaves' },
   { id: 'objetos', label: 'Objetos' }, { id: 'simbolos', label: 'Símbolos' }, { id: 'memorias', label: 'Memórias' }, { id: 'teorias', label: 'Teorias' },
   { id: 'eventos', label: 'Eventos' }, { id: 'rumores', label: 'Rumores' }, { id: 'documentos', label: 'Documentos' }, { id: 'runs', label: 'Explorações' }, { id: 'conquistas', label: 'Marcas' },
@@ -14,7 +15,7 @@ export class JournalView {
   el: HTMLElement;
   private body: HTMLElement;
   private tabsEl: HTMLElement;
-  constructor(private g: GameManager, close: () => void, private tab = 'salas') {
+  constructor(private g: GameManager, close: () => void, private tab = 'investigacoes') {
     this.body = h('div', { class: 'panel-body' });
     this.tabsEl = h('div', { class: 'tabs' });
     this.el = h('div', { class: 'panel' },
@@ -28,6 +29,20 @@ export class JournalView {
     for (const t of TABS) this.tabsEl.appendChild(h('button', { class: t.id === this.tab ? 'on' : '', onclick: () => { this.tab = t.id; this.render(); } }, t.label));
     this.body.innerHTML = '';
     const g = this.g, m = g.meta;
+    if (this.tab === 'investigacoes') {
+      const entries = g.investigation.all();
+      for (const { lead, done } of entries) {
+        const active = g.investigation.active()?.id === lead.id;
+        const targetKnown = lead.target && !!m.rooms[lead.target];
+        this.body.appendChild(h('button', {
+          class: `entry lead-entry${active ? ' active' : ''}${done ? ' done' : ''}`,
+          onclick: () => { if (!done) { g.investigation.select(lead.id); this.render(); } },
+        }, h('b', {}, `${done ? '✓ ' : active ? '◆ ' : '◇ '}${lead.title}`),
+        h('div', {}, done ? 'Investigação concluída.' : lead.goal),
+        !done && targetKnown ? h('div', { class: 'meta' }, `Lugar conhecido: ${g.roomLabel(lead.target!)} · consulte o mapa para voltar.`) : null));
+      }
+      return;
+    }
     if (this.tab === 'teorias') {
       const ts = g.memory.theories();
       if (!ts.length) this.body.appendChild(h('div', { class: 'empty' }, 'Nada se conecta ainda. Continue abrindo portas.'));

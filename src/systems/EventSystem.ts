@@ -60,6 +60,7 @@ export class EventSystem {
       try {
         if (ev.delay) await new Promise(r => setTimeout(r, ev.delay));
         await g.effects.run(ev.effects, ev.id);
+        g.investigation.refresh(true);
       } finally { this.busy.delete(ev.id); }
       if (trigger === 'tick' || trigger === 'turn') break; // one reactive event at a time keeps horror sparse
     }
