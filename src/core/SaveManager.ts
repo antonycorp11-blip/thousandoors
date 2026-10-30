@@ -92,16 +92,21 @@ export class SaveManager {
 
   async load(): Promise<SaveData> {
     await this.ready;
-    let raw: any = null;
+    let idb: any = null;
+    let ls: any = null;
     try {
-      if (this.db) raw = await idbGet(this.db, KEY);
+      if (this.db) idb = await idbGet(this.db, KEY);
     } catch (e) { console.warn('[save] idb read failed', e); }
-    if (!raw && hasLS()) {
-      try { const s = localStorage.getItem(LS_KEY); if (s) raw = JSON.parse(s); } catch (e) {
+    if (hasLS()) {
+      try { const s = localStorage.getItem(LS_KEY); if (s) ls = JSON.parse(s); } catch (e) {
         console.warn('[save] corrupted primary save, trying backup', e);
-        try { const b = localStorage.getItem(LS_BACKUP); if (b) raw = JSON.parse(b); } catch { raw = null; }
+        try { const b = localStorage.getItem(LS_BACKUP); if (b) ls = JSON.parse(b); } catch { ls = null; }
       }
     }
+    // O save da conta ATHG chega pelo localStorage (SDK cloudSync): acabou de restaurar = vale ele.
+    const fromCloud = (window as unknown as { ATHG?: { restoredFromCloud?: boolean } }).ATHG?.restoredFromCloud;
+    const when = (d: any) => Number(d?.meta?.updatedAt) || 0;
+    const raw = ls && (fromCloud || !idb || when(ls) > when(idb)) ? ls : (idb ?? ls);
     return migrate(raw);
   }
 
